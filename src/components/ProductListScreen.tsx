@@ -120,18 +120,29 @@ function CategoryPicker({ sections, currentRoute, onSelect, onClose }: {
       <div
         style={{
           width: '100%', background: 'var(--mm-paper)',
-          borderRadius: '22px 22px 0 0', padding: '20px 18px 36px',
+          borderRadius: '22px 22px 0 0',
+          display: 'flex', flexDirection: 'column',
+          maxHeight: '72vh',
         }}
         onClick={e => e.stopPropagation()}
       >
-        <div style={{
-          fontFamily: 'var(--mm-serif)', fontSize: 18, fontWeight: 350,
-          fontVariationSettings: "'opsz' 144, 'SOFT' 40", marginBottom: 4,
-        }}>Verplaats naar sectie</div>
-        <div style={{ fontSize: 12.5, color: 'rgba(19,28,46,0.5)', marginBottom: 16 }}>
-          De app onthoudt dit voor volgende keer.
+        {/* Vaste header */}
+        <div style={{ padding: '20px 18px 12px', flexShrink: 0 }}>
+          <div style={{
+            fontFamily: 'var(--mm-serif)', fontSize: 18, fontWeight: 350,
+            fontVariationSettings: "'opsz' 144, 'SOFT' 40", marginBottom: 4,
+          }}>Verplaats naar sectie</div>
+          <div style={{ fontSize: 12.5, color: 'rgba(19,28,46,0.5)' }}>
+            De app onthoudt dit voor volgende keer.
+          </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+        {/* Scrollbare lijst */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 8,
+          overflowY: 'auto', padding: '4px 18px 36px',
+          WebkitOverflowScrolling: 'touch',
+        } as React.CSSProperties}>
           {sections.map(s => (
             <button
               key={s.route}
@@ -141,7 +152,7 @@ function CategoryPicker({ sections, currentRoute, onSelect, onClose }: {
                 padding: '14px 16px', borderRadius: 'var(--mm-r-md)', border: 'none',
                 background: s.route === currentRoute ? 'var(--mm-navy)' : 'var(--mm-cream)',
                 color:      s.route === currentRoute ? 'var(--mm-bone)' : 'var(--mm-ink)',
-                cursor: 'pointer', textAlign: 'left',
+                cursor: 'pointer', textAlign: 'left', flexShrink: 0,
               }}
             >
               <span style={{

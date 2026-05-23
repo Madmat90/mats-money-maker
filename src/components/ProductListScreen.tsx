@@ -47,8 +47,11 @@ const STORE_STYLE: Record<string, { bg: string; color: string; label: string }> 
 // Zodra je een logo-bestand hebt (bijv. public/stores/ah.svg) voeg je die hier toe.
 // De component schakelt automatisch over van tekst naar logo.
 const STORE_LOGO: Record<string, string> = {
-  // 'AH':    '/stores/ah.svg',
-  // 'Jumbo': '/stores/jumbo.svg',
+  'AH':    '/stores/ah.svg',
+  'Jumbo': '/stores/jumbo.svg',
+  'Dirk':  '/stores/dirk.svg',
+  'Plus':  '/stores/plus.svg',
+  'Lidl':  '/stores/lidle.svg',
 };
 
 function StoreChip({ store }: { store: string }) {

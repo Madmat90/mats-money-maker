@@ -87,3 +87,9 @@ body {
   70%  { transform: scale(1.35); opacity: 0; }
   100% { transform: scale(1.35); opacity: 0; }
 }
+
+@keyframes mmScanLine {
+  0%   { top: 6px;  opacity: 1; }
+  50%  { top: calc(100% - 8px); opacity: 1; }
+  100% { top: 6px;  opacity: 1; }
+}

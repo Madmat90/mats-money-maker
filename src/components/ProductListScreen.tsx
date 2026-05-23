@@ -4,7 +4,8 @@
 import { useState, useEffect, useRef } from 'react';
 import type { RouteSection, ShoppingItem } from '../types';
 import type { DealInfo }  from '../hooks/useDeals';
-import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { useSpeechRecognition }   from '../hooks/useSpeechRecognition';
+import { BarcodeScannerOverlay } from './BarcodeScannerOverlay';
 import { MMLogo }   from './Logo';
 import { Checkbox } from './ui/Checkbox';
 import { CircBtn }  from './ui/CircBtn';
@@ -553,6 +554,7 @@ export function ProductListScreen({
 
   const [toast,           setToast]          = useState<ToastState>({ mode: 'hidden' });
   const [showManualInput, setShowManualInput] = useState(false);
+  const [showScanner,     setShowScanner]    = useState(false);
   const [showMenu,        setShowMenu]        = useState(false);
   // { id, currentRoute } van het item waarvoor de categoriepicker open is
   const [pickerTarget, setPickerTarget] = useState<{ id: string; route: string } | null>(null);
@@ -779,6 +781,32 @@ export function ProductListScreen({
         )}
       </div>
 
+      {/* ── Barcode scan FAB ── */}
+      <button
+        aria-label="Scan barcode"
+        onClick={() => setShowScanner(true)}
+        style={{
+          position: 'fixed', right: 96, bottom: 37,
+          width: 52, height: 52, borderRadius: 99,
+          background: 'var(--mm-navy)',
+          border: '3px solid var(--mm-paper)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+          boxShadow: '0 8px 20px -6px rgba(19,28,46,0.45)',
+          zIndex: 100,
+        }}
+      >
+        {/* Barcode icon */}
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect x="2"  y="4" width="2"  height="14" fill="var(--mm-bone)"/>
+          <rect x="6"  y="4" width="1"  height="14" fill="var(--mm-bone)"/>
+          <rect x="9"  y="4" width="2"  height="14" fill="var(--mm-bone)"/>
+          <rect x="13" y="4" width="1"  height="14" fill="var(--mm-bone)"/>
+          <rect x="16" y="4" width="2"  height="14" fill="var(--mm-bone)"/>
+          <rect x="20" y="4" width="1"  height="14" fill="var(--mm-bone)"/>
+        </svg>
+      </button>
+
       {/* ── Floating Voice FAB ── */}
       <button
         aria-label={isListening ? 'Stop luisteren' : 'Spreek item in'}
@@ -806,6 +834,17 @@ export function ProductListScreen({
           pointerEvents: 'none',
         }}/>
       </button>
+
+      {/* ── Barcode scanner overlay ── */}
+      {showScanner && (
+        <BarcodeScannerOverlay
+          onAdd={name => {
+            const added = onAddByTranscript(name);
+            showAddedToast(added);
+          }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
 
       {/* ── Tekst-invoer fallback ── */}
       {showManualInput && (

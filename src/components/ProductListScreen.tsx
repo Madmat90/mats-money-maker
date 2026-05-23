@@ -32,6 +32,47 @@ const ACCENT = '#f08a3e';
 const DAGEN = ['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
 const vandaag = DAGEN[new Date().getDay()];
 
+// ── Supermarkt merkkleuren (tekst-fallback totdat logo's beschikbaar zijn) ─
+const STORE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  'AH':         { bg: '#00A0E2', color: '#fff',    label: 'AH'     },
+  'Jumbo':      { bg: '#FDC500', color: '#003082', label: 'Jumbo'  },
+  'Dirk':       { bg: '#E31837', color: '#fff',    label: 'Dirk'   },
+  'Plus':       { bg: '#00843D', color: '#fff',    label: 'Plus'   },
+  'Lidl':       { bg: '#0050AA', color: '#FFCC00', label: 'Lidl'   },
+  'Aldi':       { bg: '#1A469C', color: '#fff',    label: 'Aldi'   },
+  'Supermarkt': { bg: 'rgba(19,28,46,0.1)', color: 'rgba(19,28,46,0.55)', label: '🏷' },
+  'Folder':     { bg: 'rgba(19,28,46,0.1)', color: 'rgba(19,28,46,0.55)', label: '🏷' },
+};
+
+// Zodra je een logo-bestand hebt (bijv. public/stores/ah.svg) voeg je die hier toe.
+// De component schakelt automatisch over van tekst naar logo.
+const STORE_LOGO: Record<string, string> = {
+  // 'AH':    '/stores/ah.svg',
+  // 'Jumbo': '/stores/jumbo.svg',
+};
+
+function StoreChip({ store }: { store: string }) {
+  const logo = STORE_LOGO[store];
+  const style = STORE_STYLE[store] ?? { bg: 'rgba(19,28,46,0.1)', color: 'rgba(19,28,46,0.55)', label: store };
+  if (logo) {
+    return (
+      <img
+        src={logo}
+        alt={store}
+        style={{ height: 16, width: 'auto', borderRadius: 3, flexShrink: 0 }}
+      />
+    );
+  }
+  return (
+    <span style={{
+      background: style.bg, color: style.color,
+      fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+      padding: '2px 5px', borderRadius: 4, flexShrink: 0,
+      whiteSpace: 'nowrap',
+    }}>{style.label}</span>
+  );
+}
+
 // ── Voice-toast state machine ─────────────────────────────────────────────
 type ToastState =
   | { mode: 'hidden' }
@@ -127,7 +168,7 @@ function ProductRow({
   onRouteChipTap: () => void;
   getDeal?:       (name: string) => DealInfo | undefined;
 }) {
-  const { name, qty, sale, carry, checked } = item;
+  const { name, qty, sale, checked } = item;
   const apiDeal   = getDeal?.(name);
   const saleBadge = apiDeal?.badge ?? sale;
 
@@ -179,20 +220,16 @@ function ProductRow({
           <span style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.005em' }}>
             {name}
           </span>
-          {carry && !checked && (
-            <span style={{
-              fontSize: 9, fontWeight: 600, letterSpacing: '0.1em',
-              textTransform: 'uppercase', color: 'var(--mm-basil)',
-              border: '1px solid currentColor', padding: '2px 5px',
-              borderRadius: 3, opacity: 0.85, whiteSpace: 'nowrap',
-            }}>↻ over</span>
-          )}
         </div>
         <span style={{ fontSize: 12, color: 'rgba(19,28,46,0.55)' }}>{qty}</span>
       </div>
 
-      {saleBadge && !checked && (
-        <Badge color={saleBadge === 'Bonus' ? ACCENT : 'var(--mm-tomato)'}>{saleBadge}</Badge>
+      {/* Aanbieding: supermarkt-chip + badge */}
+      {!checked && (apiDeal || sale) && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+          {apiDeal && <StoreChip store={apiDeal.store}/>}
+          <Badge color={saleBadge === 'Bonus' ? ACCENT : 'var(--mm-tomato)'}>{saleBadge!}</Badge>
+        </div>
       )}
 
       {/* Sectie-chip — tik om te verplaatsen */}

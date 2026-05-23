@@ -162,18 +162,17 @@ function CategoryPicker({ sections, currentRoute, onSelect, onClose }: {
 
 // ── ProductRow ─────────────────────────────────────────────────────────────
 function ProductRow({
-  item, currentRoute, onToggle, onDelete, onRouteChipTap, getDeal,
+  item, currentRoute, onToggle, onDelete, onRouteChipTap, getDeals,
 }: {
   item:           ShoppingItem;
   currentRoute:   string;
   onToggle:       () => void;
   onDelete:       () => void;
   onRouteChipTap: () => void;
-  getDeal?:       (name: string) => DealInfo | undefined;
+  getDeals?:      (name: string) => DealInfo[];
 }) {
   const { name, qty, sale, checked } = item;
-  const apiDeal   = getDeal?.(name);
-  const saleBadge = apiDeal?.badge ?? sale;
+  const apiDeals = getDeals?.(name) ?? [];
 
   // dnd-kit sortable hooks
   const {
@@ -227,11 +226,18 @@ function ProductRow({
         <span style={{ fontSize: 12, color: 'rgba(19,28,46,0.55)' }}>{qty}</span>
       </div>
 
-      {/* Aanbieding: supermarkt-chip + badge */}
-      {!checked && (apiDeal || sale) && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
-          {apiDeal && <StoreChip store={apiDeal.store}/>}
-          <Badge color={saleBadge === 'Bonus' ? ACCENT : 'var(--mm-tomato)'}>{saleBadge!}</Badge>
+      {/* Aanbieding: supermarkt-chips + badges (één rij per winkel) */}
+      {!checked && (apiDeals.length > 0 || sale) && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+          {apiDeals.length > 0
+            ? apiDeals.map((d, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <StoreChip store={d.store}/>
+                  <Badge color={d.badge === 'Bonus' ? ACCENT : 'var(--mm-tomato)'}>{d.badge}</Badge>
+                </div>
+              ))
+            : <Badge color={ACCENT}>{sale!}</Badge>
+          }
         </div>
       )}
 
@@ -277,14 +283,14 @@ function ProductRow({
 
 // ── RouteSection ──────────────────────────────────────────────────────────
 function RouteSectionBlock({
-  section, onToggle, onDelete, onReassign, onReorder, getDeal,
+  section, onToggle, onDelete, onReassign, onReorder, getDeals,
 }: {
   section:    RouteSection;
   onToggle:   (id: string) => void;
   onDelete:   (id: string) => void;
   onReassign: (id: string, currentRoute: string) => void;
   onReorder:  (sectionRoute: string, fromIndex: number, toIndex: number) => void;
-  getDeal?:   (name: string) => DealInfo | undefined;
+  getDeals?:  (name: string) => DealInfo[];
 }) {
   const checkedCount = section.items.filter(i => i.checked).length;
   if (section.items.length === 0) return null;
@@ -338,7 +344,7 @@ function RouteSectionBlock({
                 onToggle={() => onToggle(item.id)}
                 onDelete={() => onDelete(item.id)}
                 onRouteChipTap={() => onReassign(item.id, section.route)}
-                getDeal={getDeal}
+                getDeals={getDeals}
               />
             ))}
           </div>
@@ -532,7 +538,7 @@ interface ProductListScreenProps {
   onReorderItems:    (sectionRoute: string, from: number, to: number) => void;
   onAddByTranscript: (transcript: string) => ShoppingItem[];
   onNewList?:        () => void;
-  getDeal?:          (name: string) => DealInfo | undefined;
+  getDeals?:         (name: string) => DealInfo[];
   dealsLoading?:     boolean;
   onBack?:           () => void;
 }
@@ -545,7 +551,7 @@ export function ProductListScreen({
   onReorderItems,
   onAddByTranscript,
   onNewList,
-  getDeal,
+  getDeals,
   dealsLoading = false,
   onBack,
 }: ProductListScreenProps) {
@@ -739,7 +745,7 @@ export function ProductListScreen({
             onDelete={onDeleteItem}
             onReassign={(id, route) => setPickerTarget({ id, route })}
             onReorder={onReorderItems}
-            getDeal={getDeal}
+            getDeals={getDeals}
           />
         ))}
 

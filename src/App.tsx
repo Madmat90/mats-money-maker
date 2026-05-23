@@ -14,7 +14,7 @@ function App() {
     useShoppingList(EMPTY_SECTIONS);
 
   // Aanbiedingen ophalen zodra de lijst zichtbaar is
-  const { getDeal, dealsLoading } = useDeals(screen === 'list' ? sections : []);
+  const { getDeals, dealsLoading } = useDeals(screen === 'list' ? sections : []);
 
   if (screen === 'splash') {
     return (
@@ -37,7 +37,7 @@ function App() {
       onReorderItems={reorderItems}
       onAddByTranscript={addByTranscript}
       onNewList={startNewList}
-      getDeal={getDeal}
+      getDeals={getDeals}
       dealsLoading={dealsLoading}
       onBack={() => setScreen('splash')}
     />

@@ -1,36 +1,36 @@
 // useDeals.ts
 // Haalt aanbiedingen op van de Mats Money Maker Deals API.
 // Cachet resultaten 30 min in localStorage — werkt stil als API niet bereikbaar is.
+// v4: slaat ALLE deals per product op (AH + Jumbo + ...), niet alleen de eerste.
 
 import { useState, useEffect, useCallback } from 'react';
 import type { RouteSection } from '../types';
 
-// Stel in via .env.local (dev) of Vercel/Render env var (productie)
 const API_URL =
   (import.meta.env.VITE_DEALS_API_URL as string | undefined) ??
   'http://localhost:3008';
 
-const CACHE_KEY = 'mmm-deals-v3';   // v3: TTL ook voor sentinels
-const CACHE_TTL = 30 * 60 * 1000;  // 30 minuten
+const CACHE_KEY = 'mmm-deals-v4';
+const CACHE_TTL = 30 * 60 * 1000;
 
 export interface DealInfo {
-  badge: string;   // bijv. '–25%' | 'Bonus' | 'Aanbieding'
-  store: string;   // bijv. 'AH' | 'Jumbo' | 'Dirk'
+  badge: string;
+  store: string;
 }
 
-// ── Lokale cache helpers ──────────────────────────────────────────────────
-function loadCache(): { map: Map<string, DealInfo>; ts: number } {
+// ── Cache helpers ─────────────────────────────────────────────────────────
+function loadCache(): { map: Map<string, DealInfo[]>; ts: number } {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return { map: new Map(), ts: 0 };
-    const { ts, data } = JSON.parse(raw) as { ts: number; data: Record<string, DealInfo> };
+    const { ts, data } = JSON.parse(raw) as { ts: number; data: Record<string, DealInfo[]> };
     return { map: new Map(Object.entries(data)), ts };
   } catch {
     return { map: new Map(), ts: 0 };
   }
 }
 
-function saveCache(map: Map<string, DealInfo>) {
+function saveCache(map: Map<string, DealInfo[]>) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({
       ts:   Date.now(),
@@ -46,10 +46,9 @@ if (typeof window !== 'undefined') {
 
 // ── Hook ──────────────────────────────────────────────────────────────────
 export function useDeals(sections: RouteSection[]) {
-  const [deals,   setDeals]   = useState<Map<string, DealInfo>>(() => loadCache().map);
+  const [deals,   setDeals]   = useState<Map<string, DealInfo[]>>(() => loadCache().map);
   const [loading, setLoading] = useState(false);
 
-  // Bepaal welke productnamen we nog niet gecacht hebben
   const itemKey = sections
     .flatMap(s => s.items)
     .filter(i => !i.checked)
@@ -60,7 +59,6 @@ export function useDeals(sections: RouteSection[]) {
     const { map: cached, ts } = loadCache();
     const cacheExpired = Date.now() - ts > CACHE_TTL;
 
-    // Laad wat al in de cache zit meteen in de state
     if (cached.size > 0) setDeals(cached);
 
     const names = sections
@@ -68,8 +66,7 @@ export function useDeals(sections: RouteSection[]) {
       .filter(i => !i.checked)
       .map(i => i.name);
 
-    // Cache verlopen → alles opnieuw checken (ook sentinels van eerder)
-    // Cache vers    → alleen items die nog helemaal ontbreken
+    // Cache verlopen → alles opnieuw (ook items zonder deal); vers → alleen nieuw
     const missing = cacheExpired
       ? names
       : names.filter(n => !cached.has(n.toLowerCase()));
@@ -84,7 +81,7 @@ export function useDeals(sections: RouteSection[]) {
     try {
       const q   = encodeURIComponent(names.slice(0, 20).join(','));
       const res = await fetch(`${API_URL}/deals?q=${q}`, {
-        signal: AbortSignal.timeout(35_000),   // Render free tier cold start ~30s
+        signal: AbortSignal.timeout(35_000),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -97,32 +94,26 @@ export function useDeals(sections: RouteSection[]) {
         const next = new Map(prev);
         for (const result of data) {
           const key = result.query.toLowerCase();
-          if (result.deals.length > 0) {
-            const best = result.deals[0];
-            next.set(key, { badge: best.badge, store: best.store });
-          } else {
-            // Geen deal gevonden — sla sentinel op zodat we niet blijven herfetchen
-            next.set(key, { badge: '', store: '' });
-          }
+          // Sla ALLE deals op (max 4 stores); lege array = gecheckt, geen deal
+          next.set(key, result.deals.slice(0, 4).map(d => ({
+            badge: d.badge,
+            store: d.store,
+          })));
         }
         saveCache(next);
         return next;
       });
     } catch (e) {
-      // Stille fout — deals zijn optioneel, app werkt gewoon door
       console.warn('[Deals] API niet bereikbaar:', (e as Error).message);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  /** Geeft de beste aanbieding terug voor een productnaam (case-insensitive).
-   *  Sentinel { store:'', badge:'' } betekent: gecheckt, geen deal → undefined */
-  function getDeal(name: string): DealInfo | undefined {
-    const d = deals.get(name.toLowerCase());
-    if (!d || (d.store === '' && d.badge === '')) return undefined;
-    return d;
+  /** Geeft alle aanbiedingen terug voor een productnaam (lege array = geen deal) */
+  function getDeals(name: string): DealInfo[] {
+    return deals.get(name.toLowerCase()) ?? [];
   }
 
-  return { getDeal, dealsLoading: loading };
+  return { getDeals, dealsLoading: loading };
 }

@@ -48,28 +48,167 @@ export const DEMO_SECTIONS: RouteSection[] = [
       { id: 'c2', name: 'Griekse yoghurt', qty: '500 g',   checked: false },
     ],
   },
+  { route: '04', title: 'Voorverpakte groente',          items: [] },
+  { route: '05', title: 'Vlees, vleeswaren & slaatjes',  items: [] },
+  { route: '06', title: 'Verse kaas',                    items: [] },
+  { route: '07', title: 'Verpakte kaas',                 items: [] },
+  { route: '08', title: 'Tapas',                         items: [] },
+  { route: '09', title: 'Verse noten',                   items: [] },
+  { route: '10', title: 'Oosters',                       items: [] },
+  { route: '11', title: 'Gemakseten',                    items: [] },
+  { route: '12', title: 'Conserven',                     items: [] },
+  { route: '13', title: 'Koffie & thee',                 items: [] },
+  { route: '14', title: 'Voorverpakte noten',            items: [] },
+  { route: '15', title: 'Diepvries',                     items: [] },
+  { route: '16', title: 'Koekjes & chocolade',           items: [] },
+  { route: '17', title: 'Huishouden',                    items: [] },
+  { route: '18', title: 'Verzorging',                    items: [] },
+  { route: '19', title: 'Dranken',                       items: [] },
+  { route: '20', title: 'Overig',                        items: [] },
 ];
 
 // Lege secties — basis voor een nieuw lijstje
 export const EMPTY_SECTIONS: RouteSection[] = [
-  { route: '01', title: 'Groente & fruit', items: [] },
-  { route: '02', title: 'Brood & banket',  items: [] },
-  { route: '03', title: 'Zuivel',           items: [] },
-  { route: '04', title: 'Overig',           items: [] },
+  { route: '01', title: 'Groente & fruit',               items: [] },
+  { route: '02', title: 'Brood & banket',                items: [] },
+  { route: '03', title: 'Zuivel',                        items: [] },
+  { route: '04', title: 'Voorverpakte groente',          items: [] },
+  { route: '05', title: 'Vlees, vleeswaren & slaatjes',  items: [] },
+  { route: '06', title: 'Verse kaas',                    items: [] },
+  { route: '07', title: 'Verpakte kaas',                 items: [] },
+  { route: '08', title: 'Tapas',                         items: [] },
+  { route: '09', title: 'Verse noten',                   items: [] },
+  { route: '10', title: 'Oosters',                       items: [] },
+  { route: '11', title: 'Gemakseten',                    items: [] },
+  { route: '12', title: 'Conserven',                     items: [] },
+  { route: '13', title: 'Koffie & thee',                 items: [] },
+  { route: '14', title: 'Voorverpakte noten',            items: [] },
+  { route: '15', title: 'Diepvries',                     items: [] },
+  { route: '16', title: 'Koekjes & chocolade',           items: [] },
+  { route: '17', title: 'Huishouden',                    items: [] },
+  { route: '18', title: 'Verzorging',                    items: [] },
+  { route: '19', title: 'Dranken',                       items: [] },
+  { route: '20', title: 'Overig',                        items: [] },
 ];
 
 // ── Keyword → route classificatie ───────────────────────────────────────────
+// Let op: keys '10'-'20' zijn JS array-indices en worden door Object.entries
+// voor '01'-'09' teruggegeven. classify() sorteert daarom altijd op routenummer.
 const ROUTE_MAP: Record<string, string[]> = {
-  '01': ['tomaat','tomaten','komkommer','sla','appel','appels','peer','banaan','mango',
-         'avocado','peterselie','paprika','ui','uien','knoflook','wortel','courgette',
-         'aubergine','spinazie','champignon','sperzieboon','broccoli','bloemkool','aardbei',
-         'druiven','citroen','limoen','sinaasappel','peer','kiwi','radijs'],
-  '02': ['brood','bollen','croissant','beschuit','cracker','bagel','ciabatta','baguette',
-         'koek','cake','worstenbrood','pistolet','muesli','cornflakes','havermout','granola'],
-  '03': ['melk','yoghurt','kwark','kaas','boter','room','vla','pudding','ei','eieren',
-         'slagroom','crème','mascarpone','ricotta','mozzarella','brie','gouda'],
-  '04': ['pasta','rijst','aardappel','aardappelen','saus','soep','blik','tonijn',
-         'kip','gehakt','vlees','vis','zalm','garnalen','tofu','tempeh'],
+  '01': [
+    'tomaat','tomaten','komkommer','sla','appel','appels','peer','banaan','mango',
+    'avocado','peterselie','paprika','ui','uien','knoflook','wortel','courgette',
+    'aubergine','champignon','sperzieboon','broccoli','bloemkool','aardbei',
+    'druiven','citroen','limoen','sinaasappel','kiwi','radijs','prei','gember',
+    'asperge','venkel','selderij','biet','witlof','andijvie','waterkers',
+    'rode kool','witte kool','spitskool','bieslook','dille','tijm','rozemarijn',
+    'basilicum','munt','aardappel','aardappelen','bosui','lente-ui',
+  ],
+  '02': [
+    'brood','bollen','croissant','beschuit','bagel','ciabatta','baguette',
+    'cake','worstenbrood','pistolet','muesli','cornflakes','havermout','granola',
+    'roggebrood','wrap','tortilla','broodjes','stokbrood','focaccia','pitabrood',
+    'naanbrood','rijstwafels','ontbijtgranen',
+  ],
+  '03': [
+    'melk','yoghurt','kwark','boter','room','vla','pudding','ei','eieren',
+    'slagroom','karnemelk','kefir','chocolademelk','zure room','hangop','skyr',
+  ],
+  '04': [
+    'wokgroente','roerbakgroente','soepgroente','saladezak','snijgroente',
+    'preiringen','veldsla','ijsbergsla','mesclun','coleslaw',
+    'voorgesneden','salade mix','kant-en-klare groente','haricots',
+  ],
+  '05': [
+    'kip','gehakt','vlees','biefstuk','kipfilet','varkens','lam',
+    'rookvlees','ham','salami','worst','leverworst','eiersalade','huzarensalade',
+    'garnalensalade','paté','bacon','spek','tartaar','ossenworst','carpaccio',
+    'filet americain','rosbief','entrecôte','ribeye','schnitzel',
+    'slavinken','braadworst','merquez','chorizo','coppa','bresaola',
+    'vis','zalm','garnalen','zeebaars','forel','kabeljauw','mosselen',
+    'zalmfilet','tilapia','pangasius',
+  ],
+  '06': [
+    'verse kaas','burrata','ricotta','feta','geitenkaas','brie','camembert',
+    'cottage cheese','mozzarella','cream cheese','labneh','mascarpone',
+    'fromage blanc',
+  ],
+  '07': [
+    'kaas','gouda','edammer','cheddar','parmezaan','gruyère','belegen',
+    'jong belegen','komijnekaas','manchego','parmigiano','grana padano',
+    'emmentaler','leerdammer','smeerkaas','raclette','maasdam','beemster',
+    'oude kaas','extra belegen',
+  ],
+  '08': [
+    'olijven','antipasti','tapas','tzatziki','hummus','guacamole','pesto',
+    'bruschetta','artisjokharten','zongedroogde tomaten','tapenade',
+    'gevulde paprika','dolmades','baba ganoush','harissa','dip',
+  ],
+  '09': [
+    'verse noten','noten los','noten bulk',
+  ],
+  '10': [
+    'sojasaus','teriyaki','ketjap','sambal','nasi','bami','rijstnoedels',
+    'mie','ramen','udon','soba','tempeh','tofu','sesamolie','vissaus',
+    'oestersaus','hoisin','kokosmelk','tamarinde','wasabi','kimchi','miso',
+    'dashi','lemongrass','sriracha','rijstazijn','gemberpasta','currypasta',
+  ],
+  '11': [
+    'pizza','quiche','lasagne','ovenschotel','kant-en-klaar','pastasalade',
+    'tortellini','gnocchi','stamppot','hutspot','erwtensoep','maaltijdsoep',
+    'maaltijd','kant en klaar','panini','verse pasta','gevulde pasta',
+  ],
+  '12': [
+    'pasta','spaghetti','penne','fusilli','farfalle','tagliatelle','rigatoni',
+    'rijst','couscous','bulgur','quinoa','tomatensaus','pastasaus',
+    'blik','tonijn','sardines','makreel blik','bonen','linzen','kikkererwten',
+    'bruine bonen','kidneybonen','tomatenpuree','passata','gepelde tomaten',
+    'augurken','zilveruitjes','jam','honing','pindakaas','notenpasta',
+    'confiture','siroop','stroop','ansjovis','kappertjes','olijfolie',
+    'azijn','mosterd','mayo','ketchup','soepblik',
+  ],
+  '13': [
+    'koffie','thee','espresso','cappuccino','koffiebonen','koffiecups',
+    'nespresso','senseo','groene thee','kruidenthee','rooibos','earl grey',
+    'chai','matcha','oploskoffie',
+  ],
+  '14': [
+    'studentenhaver','mixed nuts','cashewnoten','amandelen','walnoten',
+    'hazelnoten','pistache','rozijnen','gedroogd fruit','dadels','vijgen',
+    'gedroogde abrikozen','cranberries','pinda','macadamia','pecannoten',
+    'noten zak','noten mix','gezouten noten','ongezouten noten',
+  ],
+  '15': [
+    'diepvries','friet','frites','frikandel','kroket','nugget','visstick',
+    'roomijs','ijsje','sorbet','bevroren','edamame','diepvriesgroente',
+  ],
+  '16': [
+    'koekjes','chocolade','stroopwafel','speculaas','ontbijtkoek','wafel',
+    'biscuit','pepernoten','kruidnoten','drop','snoep','bonbon','praline',
+    'gevulde koek','chocoladereep','pure chocolade','melkchocolade',
+    'truffels','zuurtjes','lolly','chips','popcorn',
+  ],
+  '17': [
+    'wasmiddel','afwasmiddel','schoonmaakmiddel','toiletpapier','wc-papier',
+    'keukenpapier','afwasborstel','spons','keukenrol','vuilniszak','afvalzak',
+    'aluminiumfolie','plastic folie','bakpapier','bleekwater','glasreiniger',
+    'vloerreiniger','droogmiddel','vaatwaspoeder','wasverzachter',
+    'handzeep','reiniger','wc-blok','geurkaars',
+  ],
+  '18': [
+    'shampoo','conditioner','douchegel','tandpasta','deodorant','scheermesje',
+    'scheercrème','bodylotion','gezichtscrème','zonnebrand','maandverband',
+    'tampon','scheergel','mondwater','lipbalsem','handcrème','haargel',
+    'haarlak','parfum','aftershave','scheerschuim','wattenschijfje',
+    'wattenstaafje','pleister','ibuprofen','paracetamol',
+  ],
+  '19': [
+    'water','spa','cola','fanta','sap','jus','limonade','bier','wijn',
+    'champagne','prosecco','frisdrank','energiedrank','smoothie',
+    'vruchtensap','ijsthee','tomatensap','appelsap','sinaasappelsap',
+    'sportdrank','mineraalwater','tonic','ginger ale','cranberrysap',
+    'druivensap','rosé',
+  ],
 };
 
 function classify(name: string, sections: RouteSection[]): string {
@@ -81,13 +220,16 @@ function classify(name: string, sections: RouteSection[]): string {
     return custom[lower];
   }
 
-  for (const [route, kws] of Object.entries(ROUTE_MAP)) {
+  // Sorteer op routenummer: JS beschouwt '10'-'20' als array-indices en zet
+  // ze anders vóór '01'-'09' in Object.entries. Expliciete sortering voorkomt dit.
+  const entries = Object.entries(ROUTE_MAP).sort((a, b) => Number(a[0]) - Number(b[0]));
+  for (const [route, kws] of entries) {
     if (kws.some(kw => lower.includes(kw))) {
       if (sections.some(s => s.route === route)) return route;
     }
   }
   // Fallback: laatste sectie
-  return sections[sections.length - 1]?.route ?? '04';
+  return sections[sections.length - 1]?.route ?? '20';
 }
 
 function uid() {

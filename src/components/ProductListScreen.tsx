@@ -483,7 +483,7 @@ function DoneSectionBlock({ items, sections, onToggle, onDelete, onReassign }: {
     for (const s of sections) {
       if (s.items.some(i => i.id === id)) return s.route;
     }
-    return '04';
+    return '20';
   };
 
   return (

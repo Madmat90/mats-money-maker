@@ -239,7 +239,31 @@ function uid() {
 function load(): RouteSection[] | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const saved: RouteSection[] = JSON.parse(raw);
+
+    // Migratie: als er secties ontbreken (oude opslag), bouw de volledige lijst op
+    // en bewaar bestaande items in hun sectie.
+    const savedMap   = new Map(saved.map(s => [s.route, s]));
+    const hasMissing = EMPTY_SECTIONS.some(s => !savedMap.has(s.route));
+    if (!hasMissing) return saved;
+
+    const migrated = EMPTY_SECTIONS.map(template => {
+      const existing = savedMap.get(template.route);
+      if (!existing) return { ...template };
+      // Oude route '04' heette 'Overig' — items gaan naar nieuwe route '20'
+      if (template.route === '04' && existing.title === 'Overig') return { ...template };
+      return { ...template, items: existing.items };
+    });
+
+    // Items van oude Overig (route 04, title 'Overig') naar nieuwe Overig (route 20)
+    const oldOverig = savedMap.get('04');
+    if (oldOverig?.title === 'Overig' && oldOverig.items.length > 0) {
+      const idx = migrated.findIndex(s => s.route === '20');
+      if (idx !== -1) migrated[idx] = { ...migrated[idx], items: [...migrated[idx].items, ...oldOverig.items] };
+    }
+
+    return migrated;
   } catch { return null; }
 }
 

@@ -170,7 +170,7 @@ function ProductRow({
   onRouteChipTap: () => void;
   getDeals?:      (name: string) => DealInfo[];
 }) {
-  const { name, qty, sale, checked } = item;
+  const { name, qty, checked } = item;
   const apiDeals = getDeals?.(name) ?? [];
 
   // dnd-kit sortable hooks

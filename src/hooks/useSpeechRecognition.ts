@@ -60,9 +60,11 @@ export function useSpeechRecognition(): SpeechHook {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       rec.onerror = (e: any) => {
-        const msg = e.error === 'no-speech'
-          ? 'Niets gehoord. Probeer opnieuw.'
-          : `Spraakfout: ${e.error}`;
+        const msg =
+          e.error === 'no-speech'  ? 'Niets gehoord — probeer opnieuw.' :
+          e.error === 'network'    ? 'Netwerkfout — werkt het best op Android Chrome.' :
+          e.error === 'not-allowed'? 'Microfoon geblokkeerd — geef toestemming in je browser.' :
+          `Spraakfout: ${e.error}`;
         setError(msg);
         setIsListening(false);
         setInterim('');

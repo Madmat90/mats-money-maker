@@ -14,6 +14,9 @@ import { MicIcon }  from './ui/MicIcon';
 
 const ACCENT = '#f08a3e';
 
+const DAGEN = ['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+const vandaag = DAGEN[new Date().getDay()];
+
 // ── Voice-toast state machine ─────────────────────────────────────────────
 type ToastState =
   | { mode: 'hidden' }
@@ -409,7 +412,7 @@ export function ProductListScreen({
         {/* Titelblok */}
         <div style={{ marginTop: 22, position: 'relative' }}>
           <div className="mm-eyebrow" style={{ color: ACCENT, opacity: 0.95 }}>
-            Lijst · woensdag
+            Lijst · {vandaag}
           </div>
           <h1 style={{
             fontFamily: 'var(--mm-serif)', fontWeight: 320,
@@ -417,10 +420,7 @@ export function ProductListScreen({
             fontSize: 44, lineHeight: 1, letterSpacing: '-0.03em',
             margin: '6px 0 0', color: 'var(--mm-bone)',
           }}>
-            Albert{' '}
-            <span style={{ fontStyle: 'italic', fontVariationSettings: "'opsz' 144, 'SOFT' 80" }}>
-              Heijn
-            </span>
+            Boodschappen
           </h1>
 
           {/* Meta-rij */}

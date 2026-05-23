@@ -10,7 +10,7 @@ const API_URL =
   (import.meta.env.VITE_DEALS_API_URL as string | undefined) ??
   'http://localhost:3008';
 
-const CACHE_KEY = 'mmm-deals-v2';   // v2: sentinel voor "geen deal" + always-fetch-missing
+const CACHE_KEY = 'mmm-deals-v3';   // v3: TTL ook voor sentinels
 const CACHE_TTL = 30 * 60 * 1000;  // 30 minuten
 
 export interface DealInfo {
@@ -57,20 +57,24 @@ export function useDeals(sections: RouteSection[]) {
     .join(',');
 
   useEffect(() => {
-    const { map: cached } = loadCache();
+    const { map: cached, ts } = loadCache();
+    const cacheExpired = Date.now() - ts > CACHE_TTL;
 
     // Laad wat al in de cache zit meteen in de state
     if (cached.size > 0) setDeals(cached);
 
-    // Welke namen ontbreken nog in de cache?  (ongeacht hoe oud de cache is)
     const names = sections
       .flatMap(s => s.items)
       .filter(i => !i.checked)
       .map(i => i.name);
 
-    const missing = names.filter(n => !cached.has(n.toLowerCase()));
-    if (!missing.length) return;
+    // Cache verlopen → alles opnieuw checken (ook sentinels van eerder)
+    // Cache vers    → alleen items die nog helemaal ontbreken
+    const missing = cacheExpired
+      ? names
+      : names.filter(n => !cached.has(n.toLowerCase()));
 
+    if (!missing.length) return;
     void fetchDeals(missing);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemKey]);

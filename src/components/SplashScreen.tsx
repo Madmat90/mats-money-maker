@@ -53,7 +53,7 @@ export function SplashScreen({ onOpenList, onNewList }: SplashScreenProps) {
 
       {/* Titel — compact in donkerblauwe zone boven de man */}
       <div style={{
-        padding: '10px 32px 0',
+        padding: '28px 32px 0',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

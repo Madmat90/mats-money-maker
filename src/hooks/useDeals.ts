@@ -10,7 +10,7 @@ const API_URL =
   (import.meta.env.VITE_DEALS_API_URL as string | undefined) ??
   'http://localhost:3008';
 
-const CACHE_KEY = 'mmm-deals-v1';
+const CACHE_KEY = 'mmm-deals-v2';   // v2: sentinel voor "geen deal" + always-fetch-missing
 const CACHE_TTL = 30 * 60 * 1000;  // 30 minuten
 
 export interface DealInfo {
@@ -57,15 +57,12 @@ export function useDeals(sections: RouteSection[]) {
     .join(',');
 
   useEffect(() => {
-    const { map: cached, ts } = loadCache();
+    const { map: cached } = loadCache();
 
-    // Cache nog vers?
-    if (Date.now() - ts < CACHE_TTL) {
-      setDeals(cached);
-      return;
-    }
+    // Laad wat al in de cache zit meteen in de state
+    if (cached.size > 0) setDeals(cached);
 
-    // Welke namen missen in de cache?
+    // Welke namen ontbreken nog in de cache?  (ongeacht hoe oud de cache is)
     const names = sections
       .flatMap(s => s.items)
       .filter(i => !i.checked)
@@ -95,12 +92,13 @@ export function useDeals(sections: RouteSection[]) {
       setDeals(prev => {
         const next = new Map(prev);
         for (const result of data) {
+          const key = result.query.toLowerCase();
           if (result.deals.length > 0) {
             const best = result.deals[0];
-            next.set(result.query.toLowerCase(), {
-              badge: best.badge,
-              store: best.store,
-            });
+            next.set(key, { badge: best.badge, store: best.store });
+          } else {
+            // Geen deal gevonden — sla sentinel op zodat we niet blijven herfetchen
+            next.set(key, { badge: '', store: '' });
           }
         }
         saveCache(next);
@@ -114,9 +112,12 @@ export function useDeals(sections: RouteSection[]) {
     }
   }, []);
 
-  /** Geeft de beste aanbieding terug voor een productnaam (case-insensitive) */
+  /** Geeft de beste aanbieding terug voor een productnaam (case-insensitive).
+   *  Sentinel { store:'', badge:'' } betekent: gecheckt, geen deal → undefined */
   function getDeal(name: string): DealInfo | undefined {
-    return deals.get(name.toLowerCase());
+    const d = deals.get(name.toLowerCase());
+    if (!d || (d.store === '' && d.badge === '')) return undefined;
+    return d;
   }
 
   return { getDeal, dealsLoading: loading };

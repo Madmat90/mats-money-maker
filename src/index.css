@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Inter:wght@300..700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* ─────────────────────────────────────────────────────────────
+   Mats Money Maker — Design tokens
+   Midnight navy + saffron + cream paper
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* Core palette */
+  --mm-ink:        #131c2e;
+  --mm-navy:       #1a2540;
+  --mm-navy-2:     #243152;
+  --mm-navy-3:     #2f3d63;
+  --mm-paper:      #faf6ee;
+  --mm-cream:      #f5efe4;
+  --mm-cream-2:    #ece4d2;
+  --mm-bone:       #efe5d2;
+  --mm-muted:      #98a3bf;
+
+  /* Accent */
+  --mm-saffron:      #f08a3e;
+  --mm-saffron-deep: #d96f24;
+  --mm-saffron-soft: #f7b07a;
+
+  /* Food colors — spaarzaam */
+  --mm-tomato:   #c9402f;
+  --mm-basil:    #4f7a4a;
+  --mm-mustard:  #d4a93a;
+  --mm-plum:     #6b3b5e;
+
+  /* Type */
+  --mm-serif: 'Fraunces', Georgia, serif;
+  --mm-sans:  'Inter', -apple-system, system-ui, sans-serif;
+  --mm-mono:  'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Radii */
+  --mm-r-xs:   4px;
+  --mm-r-sm:   8px;
+  --mm-r-md:   14px;
+  --mm-r-lg:   22px;
+  --mm-r-pill: 999px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--mm-sans);
+  background: var(--mm-paper);
+  color: var(--mm-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Utilities ── */
+.mm-tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.mm-eyebrow {
+  font-family: var(--mm-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* ── Animations ── */
+@keyframes mmPulse {
+  0%   { transform: scale(1);    opacity: 0.55; }
+  70%  { transform: scale(1.35); opacity: 0; }
+  100% { transform: scale(1.35); opacity: 0; }
+}

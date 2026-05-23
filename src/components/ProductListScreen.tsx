@@ -6,7 +6,6 @@ import type { RouteSection, ShoppingItem } from '../types';
 import type { DealInfo }  from '../hooks/useDeals';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { MMLogo }   from './Logo';
-import { Badge }    from './ui/Badge';
 import { Checkbox } from './ui/Checkbox';
 import { CircBtn }  from './ui/CircBtn';
 import { DragGrip } from './ui/DragGrip';
@@ -226,18 +225,12 @@ function ProductRow({
         <span style={{ fontSize: 12, color: 'rgba(19,28,46,0.55)' }}>{qty}</span>
       </div>
 
-      {/* Aanbieding: supermarkt-chips + badges (één rij per winkel) */}
-      {!checked && (apiDeals.length > 0 || sale) && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-          {apiDeals.length > 0
-            ? apiDeals.map((d, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <StoreChip store={d.store}/>
-                  <Badge color={d.badge === 'Bonus' ? ACCENT : 'var(--mm-tomato)'}>{d.badge}</Badge>
-                </div>
-              ))
-            : <Badge color={ACCENT}>{sale!}</Badge>
-          }
+      {/* Aanbieding: alleen supermarkt-logos */}
+      {!checked && apiDeals.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          {apiDeals.map((d, i) => (
+            <StoreChip key={i} store={d.store}/>
+          ))}
         </div>
       )}
 

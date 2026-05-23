@@ -2,8 +2,6 @@
 // Achtergrond: splash-bg.png (man met boodschappen).
 // Tekst staat in het donkerblauwe stuk boven de man.
 
-import { MMSymbol } from './Logo';
-
 const ACCENT     = 'var(--mm-saffron)';
 const ACCENT_HEX = '#f08a3e';
 
@@ -53,30 +51,28 @@ export function SplashScreen({ onOpenList, onNewList }: SplashScreenProps) {
         <span className="mm-eyebrow" style={{ color: ACCENT }}>Welkom terug</span>
       </div>
 
-      {/* Logo + titel — boven de man */}
+      {/* Titel — compact in donkerblauwe zone boven de man */}
       <div style={{
-        padding: '18px 32px 0',
+        padding: '10px 32px 0',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         position: 'relative',
         zIndex: 2,
       }}>
-        <MMSymbol variant="sprout" size={48} color="var(--mm-bone)" accent={ACCENT_HEX}/>
-
         <h1 style={{
           fontFamily: 'var(--mm-serif)',
           fontWeight: 320,
           fontVariationSettings: "'opsz' 144, 'SOFT' 50",
-          fontSize: 58,
-          lineHeight: 0.9,
-          letterSpacing: '-0.035em',
-          margin: '18px 0 0',
+          fontSize: 40,
+          lineHeight: 0.95,
+          letterSpacing: '-0.03em',
+          margin: '0',
           color: 'var(--mm-bone)',
           textAlign: 'center',
-          textShadow: '0 2px 16px rgba(0,0,0,0.4)',
+          textShadow: '0 2px 16px rgba(0,0,0,0.5)',
         }}>
-          Mats<br/>
+          Mats{' '}
           <span style={{
             fontStyle: 'italic',
             fontVariationSettings: "'opsz' 144, 'SOFT' 80",
@@ -84,16 +80,14 @@ export function SplashScreen({ onOpenList, onNewList }: SplashScreenProps) {
         </h1>
 
         <p style={{
-          fontSize: 14,
-          lineHeight: 1.55,
+          fontSize: 13,
+          lineHeight: 1.5,
           color: 'rgba(239,229,210,0.75)',
           textAlign: 'center',
-          maxWidth: 240,
-          marginTop: 14,
-          textShadow: '0 1px 8px rgba(0,0,0,0.5)',
+          marginTop: 8,
+          textShadow: '0 1px 8px rgba(0,0,0,0.6)',
         }}>
-          Spreek je lijst in.<br/>
-          Loop op route. Mis geen bonus.
+          Spreek je lijst in. Mis geen bonus.
         </p>
       </div>
 

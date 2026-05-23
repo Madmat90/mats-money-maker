@@ -110,9 +110,16 @@ export function useDeals(sections: RouteSection[]) {
     }
   }, []);
 
-  /** Geeft alle aanbiedingen terug voor een productnaam (lege array = geen deal) */
+  /** Geeft één aanbieding per winkel terug (lege array = geen deal) */
   function getDeals(name: string): DealInfo[] {
-    return deals.get(name.toLowerCase()) ?? [];
+    const all = deals.get(name.toLowerCase()) ?? [];
+    // Max 1 deal per winkel — eerste (beste) match wint
+    const seen = new Set<string>();
+    return all.filter(d => {
+      if (seen.has(d.store)) return false;
+      seen.add(d.store);
+      return true;
+    });
   }
 
   return { getDeals, dealsLoading: loading };

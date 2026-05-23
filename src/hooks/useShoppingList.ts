@@ -6,7 +6,19 @@ import { useState, useEffect, useCallback } from 'react';
 import type { RouteSection, ShoppingItem } from '../types';
 import { parseTranscript } from '../utils/parseTranscript';
 
-const STORAGE_KEY = 'mmm-list-v1';
+const STORAGE_KEY        = 'mmm-list-v1';
+const CUSTOM_ROUTES_KEY  = 'mmm-custom-routes-v1';
+
+function loadCustomRoutes(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(CUSTOM_ROUTES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveCustomRoutes(map: Record<string, string>) {
+  try { localStorage.setItem(CUSTOM_ROUTES_KEY, JSON.stringify(map)); } catch {}
+}
 
 // ── Demo-startdata (gebruikt als localStorage leeg is) ──────────────────────
 export const DEMO_SECTIONS: RouteSection[] = [
@@ -62,6 +74,13 @@ const ROUTE_MAP: Record<string, string[]> = {
 
 function classify(name: string, sections: RouteSection[]): string {
   const lower = name.toLowerCase();
+
+  // Geleerde routes gaan voor op de ingebouwde ROUTE_MAP
+  const custom = loadCustomRoutes();
+  if (custom[lower] && sections.some(s => s.route === custom[lower])) {
+    return custom[lower];
+  }
+
   for (const [route, kws] of Object.entries(ROUTE_MAP)) {
     if (kws.some(kw => lower.includes(kw))) {
       if (sections.some(s => s.route === route)) return route;
@@ -140,5 +159,39 @@ export function useShoppingList(seed: RouteSection[] = DEMO_SECTIONS) {
     );
   }, []);
 
-  return { sections, toggleItem, addByTranscript, startNewList };
+  /** Verwijder een item op id */
+  const deleteItem = useCallback((id: string) => {
+    setSections(prev => prev.map(s => ({
+      ...s,
+      items: s.items.filter(it => it.id !== id),
+    })));
+  }, []);
+
+  /**
+   * Verplaats item naar een andere sectie en sla de naam→route koppeling op,
+   * zodat de app dit product voortaan automatisch correct indeelt.
+   */
+  const reassignItem = useCallback((id: string, targetRoute: string) => {
+    setSections(prev => {
+      let moved: ShoppingItem | null = null;
+      const next = prev.map(s => ({
+        ...s,
+        items: s.items.filter(it => {
+          if (it.id === id) { moved = it; return false; }
+          return true;
+        }),
+      }));
+      if (moved) {
+        // Onthoud de koppeling naam → sectie
+        const custom = loadCustomRoutes();
+        custom[(moved as ShoppingItem).name.toLowerCase()] = targetRoute;
+        saveCustomRoutes(custom);
+        const target = next.find(s => s.route === targetRoute) ?? next[next.length - 1];
+        target.items.push(moved as ShoppingItem);
+      }
+      return next;
+    });
+  }, []);
+
+  return { sections, toggleItem, addByTranscript, startNewList, deleteItem, reassignItem };
 }

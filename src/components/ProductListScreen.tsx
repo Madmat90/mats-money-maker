@@ -43,23 +43,83 @@ function MoreIcon() {
   );
 }
 
+// ── CategoryPicker ────────────────────────────────────────────────────────
+function CategoryPicker({ sections, currentRoute, onSelect, onClose }: {
+  sections:     RouteSection[];
+  currentRoute: string;
+  onSelect:     (route: string) => void;
+  onClose:      () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(19,28,46,0.45)',
+        display: 'flex', alignItems: 'flex-end', zIndex: 300,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%', background: 'var(--mm-paper)',
+          borderRadius: '22px 22px 0 0', padding: '20px 18px 36px',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{
+          fontFamily: 'var(--mm-serif)', fontSize: 18, fontWeight: 350,
+          fontVariationSettings: "'opsz' 144, 'SOFT' 40", marginBottom: 4,
+        }}>Verplaats naar sectie</div>
+        <div style={{ fontSize: 12.5, color: 'rgba(19,28,46,0.5)', marginBottom: 16 }}>
+          De app onthoudt dit voor volgende keer.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {sections.map(s => (
+            <button
+              key={s.route}
+              onClick={() => onSelect(s.route)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 14,
+                padding: '14px 16px', borderRadius: 'var(--mm-r-md)', border: 'none',
+                background: s.route === currentRoute ? 'var(--mm-navy)' : 'var(--mm-cream)',
+                color:      s.route === currentRoute ? 'var(--mm-bone)' : 'var(--mm-ink)',
+                cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <span style={{
+                fontFamily: 'var(--mm-mono)', fontSize: 11,
+                color: s.route === currentRoute ? ACCENT : 'rgba(19,28,46,0.4)',
+              }}>{s.route}</span>
+              <span style={{
+                fontFamily: 'var(--mm-serif)', fontSize: 17, fontWeight: 350,
+                fontVariationSettings: "'opsz' 144, 'SOFT' 40",
+              }}>{s.title}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ProductRow ─────────────────────────────────────────────────────────────
 function ProductRow({
-  item, onToggle, getDeal,
+  item, currentRoute, onToggle, onDelete, onRouteChipTap, getDeal,
 }: {
-  item:     ShoppingItem;
-  onToggle: () => void;
-  getDeal?: (name: string) => DealInfo | undefined;
+  item:           ShoppingItem;
+  currentRoute:   string;
+  onToggle:       () => void;
+  onDelete:       () => void;
+  onRouteChipTap: () => void;
+  getDeal?:       (name: string) => DealInfo | undefined;
 }) {
   const { name, qty, sale, carry, checked } = item;
-  // Dynamische aanbieding van de API overschrijft de statische sale-waarde
-  const apiDeal  = getDeal?.(name);
+  const apiDeal   = getDeal?.(name);
   const saleBadge = apiDeal?.badge ?? sale;
   return (
     <div
       onClick={onToggle}
       style={{
-        display: 'flex', alignItems: 'center', gap: 12,
+        display: 'flex', alignItems: 'center', gap: 10,
         padding: '13px 14px',
         borderRadius: 'var(--mm-r-md)',
         background: checked ? 'transparent' : 'var(--mm-cream)',
@@ -97,6 +157,33 @@ function ProductRow({
       {saleBadge && !checked && (
         <Badge color={saleBadge === 'Bonus' ? ACCENT : 'var(--mm-tomato)'}>{saleBadge}</Badge>
       )}
+
+      {/* Sectie-chip — tik om te verplaatsen */}
+      {!checked && (
+        <button
+          onClick={e => { e.stopPropagation(); onRouteChipTap(); }}
+          title="Verplaats naar andere sectie"
+          style={{
+            background: 'rgba(19,28,46,0.07)', border: 'none',
+            borderRadius: 4, padding: '4px 7px',
+            fontFamily: 'var(--mm-mono)', fontSize: 10,
+            color: 'rgba(19,28,46,0.45)', cursor: 'pointer', flexShrink: 0,
+          }}
+        >{currentRoute}</button>
+      )}
+
+      {/* Verwijder-knop */}
+      <button
+        onClick={e => { e.stopPropagation(); onDelete(); }}
+        aria-label={`Verwijder ${name}`}
+        style={{
+          background: 'none', border: 'none',
+          color: 'rgba(19,28,46,0.25)', fontSize: 18,
+          cursor: 'pointer', padding: '4px 4px',
+          flexShrink: 0, lineHeight: 1,
+        }}
+      >×</button>
+
       <DragGrip/>
     </div>
   );
@@ -104,14 +191,22 @@ function ProductRow({
 
 // ── RouteSection ──────────────────────────────────────────────────────────
 function RouteSectionBlock({
-  section, onToggle, getDeal,
+  section, onToggle, onDelete, onReassign, getDeal,
 }: {
-  section:  RouteSection;
-  onToggle: (id: string) => void;
-  getDeal?: (name: string) => DealInfo | undefined;
+  section:    RouteSection;
+  onToggle:   (id: string) => void;
+  onDelete:   (id: string) => void;
+  onReassign: (id: string, currentRoute: string) => void;
+  getDeal?:   (name: string) => DealInfo | undefined;
 }) {
-  const checked = section.items.filter(i => i.checked).length;
+  const checkedCount = section.items.filter(i => i.checked).length;
   if (section.items.length === 0) return null;
+
+  // Afgevinkte items altijd onderaan
+  const sorted = [
+    ...section.items.filter(i => !i.checked),
+    ...section.items.filter(i => i.checked),
+  ];
 
   return (
     <div style={{ marginTop: 22 }}>
@@ -133,15 +228,18 @@ function RouteSectionBlock({
           alignSelf: 'center', marginBottom: 2,
         }}/>
         <span className="mm-tnum" style={{ fontSize: 11, color: 'rgba(19,28,46,0.4)' }}>
-          {checked}/{section.items.length}
+          {checkedCount}/{section.items.length}
         </span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {section.items.map(item => (
+        {sorted.map(item => (
           <ProductRow
             key={item.id}
             item={item}
+            currentRoute={section.route}
             onToggle={() => onToggle(item.id)}
+            onDelete={() => onDelete(item.id)}
+            onRouteChipTap={() => onReassign(item.id, section.route)}
             getDeal={getDeal}
           />
         ))}
@@ -275,6 +373,8 @@ function ManualInput({ onSubmit, onClose }: {
 interface ProductListScreenProps {
   sections:          RouteSection[];
   onToggleItem:      (id: string) => void;
+  onDeleteItem:      (id: string) => void;
+  onReassignItem:    (id: string, targetRoute: string) => void;
   onAddByTranscript: (transcript: string) => ShoppingItem[];
   getDeal?:          (name: string) => DealInfo | undefined;
   dealsLoading?:     boolean;
@@ -284,6 +384,8 @@ interface ProductListScreenProps {
 export function ProductListScreen({
   sections,
   onToggleItem,
+  onDeleteItem,
+  onReassignItem,
   onAddByTranscript,
   getDeal,
   dealsLoading = false,
@@ -291,8 +393,10 @@ export function ProductListScreen({
   const { isListening, interim, isSupported, error, startListening, stopListening }
     = useSpeechRecognition();
 
-  const [toast,          setToast]          = useState<ToastState>({ mode: 'hidden' });
+  const [toast,           setToast]          = useState<ToastState>({ mode: 'hidden' });
   const [showManualInput, setShowManualInput] = useState(false);
+  // { id, currentRoute } van het item waarvoor de categoriepicker open is
+  const [pickerTarget, setPickerTarget] = useState<{ id: string; route: string } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Sync toast met luisterstatus
@@ -472,6 +576,8 @@ export function ProductListScreen({
             key={s.route}
             section={s}
             onToggle={onToggleItem}
+            onDelete={onDeleteItem}
+            onReassign={(id, route) => setPickerTarget({ id, route })}
             getDeal={getDeal}
           />
         ))}
@@ -538,6 +644,19 @@ export function ProductListScreen({
         <ManualInput
           onSubmit={handleManualSubmit}
           onClose={() => setShowManualInput(false)}
+        />
+      )}
+
+      {/* ── Categorie-picker ── */}
+      {pickerTarget && (
+        <CategoryPicker
+          sections={sections}
+          currentRoute={pickerTarget.route}
+          onSelect={route => {
+            onReassignItem(pickerTarget.id, route);
+            setPickerTarget(null);
+          }}
+          onClose={() => setPickerTarget(null)}
         />
       )}
     </div>

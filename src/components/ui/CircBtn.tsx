@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface CircBtnProps {
   children: React.ReactNode;
   onClick?: () => void;

@@ -35,6 +35,7 @@ function App() {
       onDeleteItem={deleteItem}
       onReassignItem={reassignItem}
       onAddByTranscript={addByTranscript}
+      onNewList={startNewList}
       getDeal={getDeal}
       dealsLoading={dealsLoading}
       onBack={() => setScreen('splash')}

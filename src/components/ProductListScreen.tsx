@@ -25,11 +25,11 @@ type ToastState =
   | { mode: 'error';     text: string };
 
 // ── Vaste icons ───────────────────────────────────────────────────────────
-function SortIcon() {
+function BackIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M3 4h10M4.5 8h7M6 12h4"
-            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -369,6 +369,60 @@ function ManualInput({ onSubmit, onClose }: {
   );
 }
 
+// ── DoneSectionBlock ──────────────────────────────────────────────────────
+function DoneSectionBlock({ items, sections, onToggle, onDelete, onReassign }: {
+  items:      ShoppingItem[];
+  sections:   RouteSection[];
+  onToggle:   (id: string) => void;
+  onDelete:   (id: string) => void;
+  onReassign: (id: string, route: string) => void;
+}) {
+  if (items.length === 0) return null;
+
+  const getRoute = (id: string) => {
+    for (const s of sections) {
+      if (s.items.some(i => i.id === id)) return s.route;
+    }
+    return '04';
+  };
+
+  return (
+    <div style={{ marginTop: 28, marginBottom: 8 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10,
+        padding: '0 4px',
+      }}>
+        <span style={{ fontFamily: 'var(--mm-mono)', fontSize: 11, color: 'var(--mm-basil)', letterSpacing: '0.06em' }}>✓</span>
+        <h3 style={{
+          fontFamily: 'var(--mm-serif)', fontWeight: 380,
+          fontVariationSettings: "'opsz' 144, 'SOFT' 40",
+          fontSize: 22, lineHeight: 1, letterSpacing: '-0.02em',
+          margin: 0, color: 'rgba(19,28,46,0.4)',
+        }}>Gedaan</h3>
+        <span style={{ flex: 1, height: 1, background: 'rgba(19,28,46,0.06)', alignSelf: 'center' }}/>
+        <span className="mm-tnum" style={{ fontSize: 11, color: 'rgba(19,28,46,0.3)' }}>
+          {items.length}
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, opacity: 0.7 }}>
+        {items.map(item => {
+          const route = getRoute(item.id);
+          return (
+            <ProductRow
+              key={item.id}
+              item={item}
+              currentRoute={route}
+              onToggle={() => onToggle(item.id)}
+              onDelete={() => onDelete(item.id)}
+              onRouteChipTap={() => onReassign(item.id, route)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── ProductListScreen ─────────────────────────────────────────────────────
 interface ProductListScreenProps {
   sections:          RouteSection[];
@@ -376,6 +430,7 @@ interface ProductListScreenProps {
   onDeleteItem:      (id: string) => void;
   onReassignItem:    (id: string, targetRoute: string) => void;
   onAddByTranscript: (transcript: string) => ShoppingItem[];
+  onNewList?:        () => void;
   getDeal?:          (name: string) => DealInfo | undefined;
   dealsLoading?:     boolean;
   onBack?:           () => void;
@@ -387,14 +442,17 @@ export function ProductListScreen({
   onDeleteItem,
   onReassignItem,
   onAddByTranscript,
+  onNewList,
   getDeal,
   dealsLoading = false,
+  onBack,
 }: ProductListScreenProps) {
   const { isListening, interim, isSupported, error, startListening, stopListening }
     = useSpeechRecognition();
 
   const [toast,           setToast]          = useState<ToastState>({ mode: 'hidden' });
   const [showManualInput, setShowManualInput] = useState(false);
+  const [showMenu,        setShowMenu]        = useState(false);
   // { id, currentRoute } van het item waarvoor de categoriepicker open is
   const [pickerTarget, setPickerTarget] = useState<{ id: string; route: string } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -508,8 +566,8 @@ export function ProductListScreen({
         }}>
           <MMLogo variant="sprout" size="sm" color="var(--mm-bone)" accent={ACCENT}/>
           <div style={{ display: 'flex', gap: 10 }}>
-            <CircBtn ariaLabel="Sorteren"><SortIcon/></CircBtn>
-            <CircBtn ariaLabel="Meer opties"><MoreIcon/></CircBtn>
+            <CircBtn ariaLabel="Terug" onClick={onBack}><BackIcon/></CircBtn>
+            <CircBtn ariaLabel="Meer opties" onClick={() => setShowMenu(true)}><MoreIcon/></CircBtn>
           </div>
         </div>
 
@@ -574,13 +632,21 @@ export function ProductListScreen({
         {sections.map(s => (
           <RouteSectionBlock
             key={s.route}
-            section={s}
+            section={{ ...s, items: s.items.filter(i => !i.checked) }}
             onToggle={onToggleItem}
             onDelete={onDeleteItem}
             onReassign={(id, route) => setPickerTarget({ id, route })}
             getDeal={getDeal}
           />
         ))}
+
+        <DoneSectionBlock
+          items={sections.flatMap(s => s.items.filter(i => i.checked))}
+          sections={sections}
+          onToggle={onToggleItem}
+          onDelete={onDeleteItem}
+          onReassign={(id, route) => setPickerTarget({ id, route })}
+        />
 
         {totalItems === 0 && (
           <div style={{
@@ -645,6 +711,37 @@ export function ProductListScreen({
           onSubmit={handleManualSubmit}
           onClose={() => setShowManualInput(false)}
         />
+      )}
+
+      {/* ── Meer-opties menu ── */}
+      {showMenu && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,46,0.45)', display: 'flex', alignItems: 'flex-end', zIndex: 300 }}
+          onClick={() => setShowMenu(false)}
+        >
+          <div
+            style={{ width: '100%', background: 'var(--mm-paper)', borderRadius: '22px 22px 0 0', padding: '20px 18px 36px' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontFamily: 'var(--mm-serif)', fontSize: 18, fontWeight: 350, fontVariationSettings: "'opsz' 144, 'SOFT' 40", marginBottom: 16 }}>
+              Opties
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button
+                onClick={() => { setShowMenu(false); onNewList?.(); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 'var(--mm-r-md)', border: 'none', background: 'var(--mm-cream)', color: 'var(--mm-ink)', cursor: 'pointer', textAlign: 'left', fontSize: 15, fontFamily: 'var(--mm-sans)' }}
+              >
+                🗒️ Nieuw lijstje beginnen
+              </button>
+              <button
+                onClick={() => { setShowMenu(false); onBack?.(); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 'var(--mm-r-md)', border: 'none', background: 'var(--mm-cream)', color: 'var(--mm-ink)', cursor: 'pointer', textAlign: 'left', fontSize: 15, fontFamily: 'var(--mm-sans)' }}
+              >
+                ← Terug naar beginscherm
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Categorie-picker ── */}

@@ -10,7 +10,7 @@ type Screen = 'splash' | 'list';
 function App() {
   const [screen, setScreen] = useState<Screen>('splash');
 
-  const { sections, toggleItem, addByTranscript, startNewList, deleteItem, reassignItem } =
+  const { sections, toggleItem, addByTranscript, startNewList, deleteItem, reassignItem, reorderItems } =
     useShoppingList(EMPTY_SECTIONS);
 
   // Aanbiedingen ophalen zodra de lijst zichtbaar is
@@ -34,6 +34,7 @@ function App() {
       onToggleItem={toggleItem}
       onDeleteItem={deleteItem}
       onReassignItem={reassignItem}
+      onReorderItems={reorderItems}
       onAddByTranscript={addByTranscript}
       onNewList={startNewList}
       getDeal={getDeal}

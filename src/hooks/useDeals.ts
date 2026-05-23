@@ -39,6 +39,11 @@ function saveCache(map: Map<string, DealInfo>) {
   } catch {}
 }
 
+// Ping de API bij opstarten zodat Render alvast wakker wordt
+if (typeof window !== 'undefined') {
+  fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(60_000) }).catch(() => {});
+}
+
 // ── Hook ──────────────────────────────────────────────────────────────────
 export function useDeals(sections: RouteSection[]) {
   const [deals,   setDeals]   = useState<Map<string, DealInfo>>(() => loadCache().map);
@@ -78,7 +83,7 @@ export function useDeals(sections: RouteSection[]) {
     try {
       const q   = encodeURIComponent(names.slice(0, 20).join(','));
       const res = await fetch(`${API_URL}/deals?q=${q}`, {
-        signal: AbortSignal.timeout(12_000),
+        signal: AbortSignal.timeout(35_000),   // Render free tier cold start ~30s
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 

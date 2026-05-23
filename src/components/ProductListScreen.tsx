@@ -11,6 +11,21 @@ import { Checkbox } from './ui/Checkbox';
 import { CircBtn }  from './ui/CircBtn';
 import { DragGrip } from './ui/DragGrip';
 import { MicIcon }  from './ui/MicIcon';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const ACCENT = '#f08a3e';
 
@@ -115,7 +130,29 @@ function ProductRow({
   const { name, qty, sale, carry, checked } = item;
   const apiDeal   = getDeal?.(name);
   const saleBadge = apiDeal?.badge ?? sale;
+
+  // dnd-kit sortable hooks
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex:  isDragging ? 10  : undefined,
+  };
+
   return (
+    <div
+      ref={setNodeRef}
+      style={{ ...style }}
+    >
     <div
       onClick={onToggle}
       style={{
@@ -184,29 +221,48 @@ function ProductRow({
         }}
       >×</button>
 
-      <DragGrip/>
+      {/* Drag grip — touch/pointer listeners voor dnd-kit */}
+      <span
+        {...attributes}
+        {...listeners}
+        onClick={e => e.stopPropagation()}
+        style={{ touchAction: 'none', cursor: 'grab', flexShrink: 0 }}
+      >
+        <DragGrip/>
+      </span>
+    </div>
     </div>
   );
 }
 
 // ── RouteSection ──────────────────────────────────────────────────────────
 function RouteSectionBlock({
-  section, onToggle, onDelete, onReassign, getDeal,
+  section, onToggle, onDelete, onReassign, onReorder, getDeal,
 }: {
   section:    RouteSection;
   onToggle:   (id: string) => void;
   onDelete:   (id: string) => void;
   onReassign: (id: string, currentRoute: string) => void;
+  onReorder:  (sectionRoute: string, fromIndex: number, toIndex: number) => void;
   getDeal?:   (name: string) => DealInfo | undefined;
 }) {
   const checkedCount = section.items.filter(i => i.checked).length;
   if (section.items.length === 0) return null;
 
-  // Afgevinkte items altijd onderaan
-  const sorted = [
-    ...section.items.filter(i => !i.checked),
-    ...section.items.filter(i => i.checked),
-  ];
+  const unchecked = section.items.filter(i => !i.checked);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 150, tolerance: 5 } }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const fromIndex = unchecked.findIndex(i => i.id === active.id);
+    const toIndex   = unchecked.findIndex(i => i.id === over.id);
+    if (fromIndex !== -1 && toIndex !== -1) onReorder(section.route, fromIndex, toIndex);
+  }
 
   return (
     <div style={{ marginTop: 22 }}>
@@ -231,19 +287,23 @@ function RouteSectionBlock({
           {checkedCount}/{section.items.length}
         </span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {sorted.map(item => (
-          <ProductRow
-            key={item.id}
-            item={item}
-            currentRoute={section.route}
-            onToggle={() => onToggle(item.id)}
-            onDelete={() => onDelete(item.id)}
-            onRouteChipTap={() => onReassign(item.id, section.route)}
-            getDeal={getDeal}
-          />
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={unchecked.map(i => i.id)} strategy={verticalListSortingStrategy}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {unchecked.map(item => (
+              <ProductRow
+                key={item.id}
+                item={item}
+                currentRoute={section.route}
+                onToggle={() => onToggle(item.id)}
+                onDelete={() => onDelete(item.id)}
+                onRouteChipTap={() => onReassign(item.id, section.route)}
+                getDeal={getDeal}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
@@ -429,6 +489,7 @@ interface ProductListScreenProps {
   onToggleItem:      (id: string) => void;
   onDeleteItem:      (id: string) => void;
   onReassignItem:    (id: string, targetRoute: string) => void;
+  onReorderItems:    (sectionRoute: string, from: number, to: number) => void;
   onAddByTranscript: (transcript: string) => ShoppingItem[];
   onNewList?:        () => void;
   getDeal?:          (name: string) => DealInfo | undefined;
@@ -441,6 +502,7 @@ export function ProductListScreen({
   onToggleItem,
   onDeleteItem,
   onReassignItem,
+  onReorderItems,
   onAddByTranscript,
   onNewList,
   getDeal,
@@ -636,6 +698,7 @@ export function ProductListScreen({
             onToggle={onToggleItem}
             onDelete={onDeleteItem}
             onReassign={(id, route) => setPickerTarget({ id, route })}
+            onReorder={onReorderItems}
             getDeal={getDeal}
           />
         ))}

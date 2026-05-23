@@ -159,6 +159,17 @@ export function useShoppingList(seed: RouteSection[] = DEMO_SECTIONS) {
     );
   }, []);
 
+  /** Herorden items binnen een sectie (via drag-and-drop) */
+  const reorderItems = useCallback((sectionRoute: string, fromIndex: number, toIndex: number) => {
+    setSections(prev => prev.map(s => {
+      if (s.route !== sectionRoute) return s;
+      const items = [...s.items];
+      const [moved] = items.splice(fromIndex, 1);
+      items.splice(toIndex, 0, moved);
+      return { ...s, items };
+    }));
+  }, []);
+
   /** Verwijder een item op id */
   const deleteItem = useCallback((id: string) => {
     setSections(prev => prev.map(s => ({
@@ -193,5 +204,5 @@ export function useShoppingList(seed: RouteSection[] = DEMO_SECTIONS) {
     });
   }, []);
 
-  return { sections, toggleItem, addByTranscript, startNewList, deleteItem, reassignItem };
+  return { sections, toggleItem, addByTranscript, startNewList, deleteItem, reassignItem, reorderItems };
 }

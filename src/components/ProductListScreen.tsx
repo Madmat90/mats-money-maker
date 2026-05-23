@@ -1,7 +1,7 @@
 // ProductListScreen.tsx
 // Actieve boodschappenlijst met spraakherkenning, afvink-interactie en voice-toast.
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { RouteSection, ShoppingItem } from '../types';
 import type { DealInfo }  from '../hooks/useDeals';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';

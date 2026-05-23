@@ -1,7 +1,6 @@
 // SplashScreen.tsx — Mats Money Maker splash
 // Gebaseerd op SplashScreen uit screens.jsx (design handoff).
 
-import React from 'react';
 import { MMSymbol } from './Logo';
 
 const ACCENT     = 'var(--mm-saffron)';

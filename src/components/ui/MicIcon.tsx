@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface MicIconProps {
   color?: string;
   size?: number;

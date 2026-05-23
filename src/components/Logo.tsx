@@ -2,8 +2,6 @@
 // Gebaseerd op logo.jsx uit de design handoff.
 // Gecommitteerde variant: 'sprout'.
 
-import React from 'react';
-
 export type SymbolVariant = 'sprout' | 'mark' | 'cart';
 export type LogoSize = 'sm' | 'md' | 'lg' | 'xl';
 export type LogoLayout = 'horizontal' | 'stacked' | 'mark-only';

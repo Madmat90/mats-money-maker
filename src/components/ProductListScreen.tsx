@@ -54,25 +54,66 @@ const STORE_LOGO: Record<string, string> = {
   'Lidl':  '/stores/lidle.svg',
 };
 
-function StoreChip({ store }: { store: string }) {
-  const logo = STORE_LOGO[store];
+function StoreChip({ deal, onClick }: { deal: DealInfo; onClick: (d: DealInfo) => void }) {
+  const { store } = deal;
+  const logo  = STORE_LOGO[store];
   const style = STORE_STYLE[store] ?? { bg: 'rgba(19,28,46,0.1)', color: 'rgba(19,28,46,0.55)', label: store };
-  if (logo) {
-    return (
-      <img
-        src={logo}
-        alt={store}
-        style={{ height: 16, width: 'auto', borderRadius: 3, flexShrink: 0 }}
-      />
-    );
-  }
+  const inner = logo
+    ? <img src={logo} alt={store} style={{ height: 16, width: 'auto', borderRadius: 3, display: 'block' }}/>
+    : <span style={{
+        background: style.bg, color: style.color,
+        fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+        padding: '2px 5px', borderRadius: 4, whiteSpace: 'nowrap',
+      }}>{style.label}</span>;
+
   return (
-    <span style={{
-      background: style.bg, color: style.color,
-      fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
-      padding: '2px 5px', borderRadius: 4, flexShrink: 0,
-      whiteSpace: 'nowrap',
-    }}>{style.label}</span>
+    <button
+      onClick={e => { e.stopPropagation(); onClick(deal); }}
+      aria-label={`${store} aanbieding bekijken`}
+      style={{
+        background: 'none', border: 'none', padding: 0,
+        cursor: 'pointer', flexShrink: 0, display: 'flex',
+        alignItems: 'center', borderRadius: 3,
+      }}
+    >{inner}</button>
+  );
+}
+
+function DealDetailPopup({ deal, onClose }: { deal: DealInfo; onClose: () => void }) {
+  const logo  = STORE_LOGO[deal.store];
+  const style = STORE_STYLE[deal.store] ?? { bg: 'rgba(19,28,46,0.1)', color: 'rgba(19,28,46,0.55)', label: deal.store };
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,46,0.5)', display: 'flex', alignItems: 'flex-end', zIndex: 400 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ width: '100%', background: 'var(--mm-paper)', borderRadius: '22px 22px 0 0', padding: '28px 22px 44px' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Winkel */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          {logo
+            ? <img src={logo} alt={deal.store} style={{ height: 28, width: 'auto', borderRadius: 4 }}/>
+            : <span style={{ background: style.bg, color: style.color, fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 6 }}>{style.label}</span>
+          }
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--mm-ink)' }}>{deal.store}</span>
+        </div>
+
+        {/* Exacte productnaam */}
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(19,28,46,0.4)', marginBottom: 6 }}>
+          Product in aanbieding
+        </div>
+        <div style={{ fontFamily: 'var(--mm-serif)', fontSize: 22, fontWeight: 350, fontVariationSettings: "'opsz' 144, 'SOFT' 40", lineHeight: 1.2, marginBottom: 18, color: 'var(--mm-ink)' }}>
+          {deal.name}
+        </div>
+
+        {/* Badge */}
+        <div style={{ display: 'inline-block', background: ACCENT, color: '#1a2540', fontWeight: 700, fontSize: 13, padding: '6px 14px', borderRadius: 'var(--mm-r-pill)' }}>
+          {deal.badge}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -173,7 +214,7 @@ function CategoryPicker({ sections, currentRoute, onSelect, onClose }: {
 
 // ── ProductRow ─────────────────────────────────────────────────────────────
 function ProductRow({
-  item, currentRoute, onToggle, onDelete, onRouteChipTap, getDeals,
+  item, currentRoute, onToggle, onDelete, onRouteChipTap, getDeals, onDealClick,
 }: {
   item:           ShoppingItem;
   currentRoute:   string;
@@ -181,9 +222,11 @@ function ProductRow({
   onDelete:       () => void;
   onRouteChipTap: () => void;
   getDeals?:      (name: string) => DealInfo[];
+  onDealClick?:   (deal: DealInfo) => void;
 }) {
   const { name, qty, checked } = item;
   const apiDeals = getDeals?.(name) ?? [];
+  const handleDealClick = onDealClick ?? (() => {});
 
   // dnd-kit sortable hooks
   const {
@@ -237,11 +280,11 @@ function ProductRow({
         <span style={{ fontSize: 12, color: 'rgba(19,28,46,0.55)' }}>{qty}</span>
       </div>
 
-      {/* Aanbieding: alleen supermarkt-logos */}
+      {/* Aanbieding: klikbare supermarkt-logos */}
       {!checked && apiDeals.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }}>
           {apiDeals.map((d, i) => (
-            <StoreChip key={i} store={d.store}/>
+            <StoreChip key={i} deal={d} onClick={handleDealClick}/>
           ))}
         </div>
       )}
@@ -288,14 +331,15 @@ function ProductRow({
 
 // ── RouteSection ──────────────────────────────────────────────────────────
 function RouteSectionBlock({
-  section, onToggle, onDelete, onReassign, onReorder, getDeals,
+  section, onToggle, onDelete, onReassign, onReorder, getDeals, onDealClick,
 }: {
-  section:    RouteSection;
-  onToggle:   (id: string) => void;
-  onDelete:   (id: string) => void;
-  onReassign: (id: string, currentRoute: string) => void;
-  onReorder:  (sectionRoute: string, fromIndex: number, toIndex: number) => void;
-  getDeals?:  (name: string) => DealInfo[];
+  section:      RouteSection;
+  onToggle:     (id: string) => void;
+  onDelete:     (id: string) => void;
+  onReassign:   (id: string, currentRoute: string) => void;
+  onReorder:    (sectionRoute: string, fromIndex: number, toIndex: number) => void;
+  getDeals?:    (name: string) => DealInfo[];
+  onDealClick?: (deal: DealInfo) => void;
 }) {
   const checkedCount = section.items.filter(i => i.checked).length;
   if (section.items.length === 0) return null;
@@ -350,6 +394,7 @@ function RouteSectionBlock({
                 onDelete={() => onDelete(item.id)}
                 onRouteChipTap={() => onReassign(item.id, section.route)}
                 getDeals={getDeals}
+                onDealClick={onDealClick}
               />
             ))}
           </div>
@@ -567,6 +612,7 @@ export function ProductListScreen({
   const [showManualInput, setShowManualInput] = useState(false);
   const [showScanner,     setShowScanner]    = useState(false);
   const [showMenu,        setShowMenu]        = useState(false);
+  const [dealPopup,       setDealPopup]       = useState<DealInfo | null>(null);
   // { id, currentRoute } van het item waarvoor de categoriepicker open is
   const [pickerTarget, setPickerTarget] = useState<{ id: string; route: string } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -752,6 +798,7 @@ export function ProductListScreen({
             onReassign={(id, route) => setPickerTarget({ id, route })}
             onReorder={onReorderItems}
             getDeals={getDeals}
+            onDealClick={setDealPopup}
           />
         ))}
 
@@ -894,6 +941,11 @@ export function ProductListScreen({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Deal detail popup ── */}
+      {dealPopup && (
+        <DealDetailPopup deal={dealPopup} onClose={() => setDealPopup(null)}/>
       )}
 
       {/* ── Categorie-picker ── */}

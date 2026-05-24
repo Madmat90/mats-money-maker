@@ -14,6 +14,7 @@ const CACHE_KEY = 'mmm-deals-v5';
 const CACHE_TTL = 30 * 60 * 1000;
 
 export interface DealInfo {
+  name:  string;
   badge: string;
   store: string;
 }
@@ -66,7 +67,7 @@ export function useDeals(sections: RouteSection[]) {
 
       const data = await res.json() as Array<{
         query: string;
-        deals: Array<{ store: string; badge: string }>;
+        deals: Array<{ store: string; badge: string; name: string }>;
       }>;
 
       setDeals(prev => {
@@ -75,6 +76,7 @@ export function useDeals(sections: RouteSection[]) {
           const key = result.query.toLowerCase();
           // Sla ALLE deals op (max 4 stores); lege array = gecheckt, geen deal
           next.set(key, result.deals.slice(0, 4).map(d => ({
+            name:  d.name  ?? result.query,
             badge: d.badge,
             store: d.store,
           })));

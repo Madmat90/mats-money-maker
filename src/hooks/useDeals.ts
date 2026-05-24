@@ -55,27 +55,6 @@ export function useDeals(sections: RouteSection[]) {
     .map(i => i.id)
     .join(',');
 
-  useEffect(() => {
-    const { map: cached, ts } = loadCache();
-    const cacheExpired = Date.now() - ts > CACHE_TTL;
-
-    if (cached.size > 0) setDeals(cached);
-
-    const names = sections
-      .flatMap(s => s.items)
-      .filter(i => !i.checked)
-      .map(i => i.name);
-
-    // Cache verlopen → alles opnieuw (ook items zonder deal); vers → alleen nieuw
-    const missing = cacheExpired
-      ? names
-      : names.filter(n => !cached.has(n.toLowerCase()));
-
-    if (!missing.length) return;
-    void fetchDeals(missing);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemKey]);
-
   const fetchDeals = useCallback(async (names: string[]) => {
     setLoading(true);
     try {
@@ -109,6 +88,39 @@ export function useDeals(sections: RouteSection[]) {
       setLoading(false);
     }
   }, []);
+
+  const checkAndFetch = useCallback(() => {
+    const { map: cached, ts } = loadCache();
+    const cacheExpired = Date.now() - ts > CACHE_TTL;
+
+    if (cached.size > 0) setDeals(cached);
+
+    const names = sections
+      .flatMap(s => s.items)
+      .filter(i => !i.checked)
+      .map(i => i.name);
+
+    const missing = cacheExpired
+      ? names
+      : names.filter(n => !cached.has(n.toLowerCase()));
+
+    if (!missing.length) return;
+    void fetchDeals(missing);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemKey, fetchDeals]);
+
+  useEffect(() => {
+    checkAndFetch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemKey]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') checkAndFetch();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [checkAndFetch]);
 
   /** Geeft één aanbieding per winkel terug (lege array = geen deal) */
   function getDeals(name: string): DealInfo[] {

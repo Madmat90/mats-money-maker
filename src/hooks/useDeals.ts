@@ -10,7 +10,7 @@ const API_URL =
   (import.meta.env.VITE_DEALS_API_URL as string | undefined) ??
   'http://localhost:3008';
 
-const CACHE_KEY = 'mmm-deals-v5';
+const CACHE_KEY = 'mmm-deals-v6';
 const CACHE_TTL = 30 * 60 * 1000;
 
 export interface DealInfo {
@@ -76,7 +76,7 @@ export function useDeals(sections: RouteSection[]) {
           const key = result.query.toLowerCase();
           // Sla ALLE deals op (max 4 stores); lege array = gecheckt, geen deal
           next.set(key, result.deals.slice(0, 4).map(d => ({
-            name:  d.name  ?? result.query,
+            name:  d.name  || result.query,
             badge: d.badge,
             store: d.store,
           })));

@@ -54,12 +54,8 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
     }}>{children}</span>
   );
 
-  const storeChip = (label: string, bg: string, color: string) => (
-    <span style={{
-      background: bg, color,
-      fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
-      padding: '3px 7px', borderRadius: 4,
-    }}>{label}</span>
+  const storeLogo = (src: string, alt: string) => (
+    <img src={src} alt={alt} style={{ height: 16, width: 'auto', borderRadius: 3, flexShrink: 0 }}/>
   );
 
   const routeChip = (
@@ -150,36 +146,37 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
           {section('Producten toevoegen', <>
             {row(
               iconBtn(<MicSvg/>, ACCENT_HEX, '#1a2540'),
-              <><strong>Inspreken</strong> — tik op de oranje microfoonknop en noem het gewenste product. De app herkent wat u zegt en plaatst het direct op de lijst.</>
+              <><strong>Inspreken:</strong> tik op de oranje microfoonknop en noem het gewenste product. De app herkent wat u zegt en plaatst het direct op de lijst.</>
             )}
             {row(
               iconBtn(<BarcodeSvg/>, 'var(--mm-navy)', 'var(--mm-bone)'),
-              <><strong>Barcode scannen</strong> — tik op de donkere barcodeknop en scan de verpakking. Werkt het beste bij A-merken.</>
+              <><strong>Barcode scannen:</strong> tik op de donkere barcodeknop en scan de verpakking. Werkt het beste bij A-merken.</>
             )}
           </>)}
 
           {section('Aanbiedingen & categorieën', <>
             {row(
-              <div style={{ display: 'flex', gap: 3, paddingTop: 2 }}>
-                {storeChip('AH',    '#00A0E2', '#fff')}
-                {storeChip('JUMBO', '#FDC500', '#003082')}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 2 }}>
+                {storeLogo('/stores/ah.svg',    'AH')}
+                {storeLogo('/stores/jumbo.svg', 'Jumbo')}
+                {storeLogo('/stores/lidle.svg', 'Lidl')}
               </div>,
-              <><strong>Automatische prijsvergelijking</strong> — zodra een product is toegevoegd, controleert de app of het in de aanbieding is. Bij een treffer verschijnt het logo van de supermarkt. Tik erop voor de details.</>
+              <><strong>Automatische prijsvergelijking:</strong> zodra een product is toegevoegd, controleert de app of het in de aanbieding is. Bij een treffer verschijnt het logo van de supermarkt. Tik erop voor de details.</>
             )}
             {row(
               <div style={{ paddingTop: 2 }}>{routeChip}</div>,
-              <><strong>Slimme categorieën</strong> — producten worden automatisch in de juiste categorie geplaatst. Tik op het grijze getal-blokje om een product handmatig te verplaatsen. De app onthoudt dit voor de volgende keer.</>
+              <><strong>Slimme categorieën:</strong> producten worden automatisch in de juiste categorie geplaatst. Tik op het grijze getal-blokje om een product handmatig te verplaatsen. De app onthoudt dit voor de volgende keer.</>
             )}
           </>)}
 
           {section('Efficiënt winkelen', <>
             {row(
               <div style={{ paddingTop: 2 }}><CheckSvg/></div>,
-              <><strong>Afvinken</strong> — tik op een product zodra het in uw winkelwagen ligt. Het wordt doorgestreept en naar de onderkant van de lijst verplaatst.</>
+              <><strong>Afvinken:</strong> tik op een product zodra het in uw winkelwagen ligt. Het wordt doorgestreept en naar de onderkant van de lijst verplaatst.</>
             )}
             {row(
               <span style={{ fontSize: 16 }}>↻</span>,
-              <><strong>Meenemen naar volgende week</strong> — niet-gekochte producten worden bij een nieuw lijstje automatisch meegenomen en gemarkeerd met het ↻-symbool.</>
+              <><strong>Meenemen naar volgende week:</strong> niet-gekochte producten worden bij een nieuw lijstje automatisch meegenomen en gemarkeerd met het ↻-symbool.</>
             )}
           </>)}
 

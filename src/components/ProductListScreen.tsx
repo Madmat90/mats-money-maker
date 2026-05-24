@@ -84,13 +84,26 @@ function DealDetailPopup({ deal, onClose }: { deal: DealInfo; onClose: () => voi
   const style = STORE_STYLE[deal.store] ?? { bg: 'rgba(19,28,46,0.1)', color: 'rgba(19,28,46,0.55)', label: deal.store };
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,46,0.5)', display: 'flex', alignItems: 'flex-end', zIndex: 400 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(19,28,46,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400, padding: '0 24px' }}
       onClick={onClose}
     >
       <div
-        style={{ width: '100%', background: 'var(--mm-paper)', borderRadius: '22px 22px 0 0', padding: '28px 22px 44px' }}
+        style={{ width: '100%', maxWidth: 380, background: 'var(--mm-paper)', borderRadius: 20, padding: '24px 22px 28px', position: 'relative' }}
         onClick={e => e.stopPropagation()}
       >
+        {/* Sluitknop */}
+        <button
+          onClick={onClose}
+          aria-label="Sluiten"
+          style={{
+            position: 'absolute', top: 14, right: 14,
+            width: 30, height: 30, borderRadius: 99,
+            background: 'rgba(19,28,46,0.07)', border: 'none',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16, color: 'rgba(19,28,46,0.5)', lineHeight: 1,
+          }}
+        >×</button>
+
         {/* Winkel */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
           {logo

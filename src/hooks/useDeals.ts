@@ -40,10 +40,15 @@ function saveCache(map: Map<string, DealInfo[]>) {
   } catch {}
 }
 
-// Ping de API bij opstarten zodat Render alvast wakker wordt
-if (typeof window !== 'undefined') {
-  fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(60_000) }).catch(() => {});
-}
+// Ping de API bij opstarten zodat Render wakker wordt.
+// fetchDeals wacht op deze Promise zodat de deals-request pas wordt verstuurd
+// zodra de server écht reageert — ook als Render vanuit slaap opstart (30s+).
+const _serverReady: Promise<void> =
+  typeof window !== 'undefined'
+    ? fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(60_000) })
+        .then(() => {})
+        .catch(() => {})   // altijd resolven, ook bij fout — blokkeer de app niet
+    : Promise.resolve();
 
 // ── Hook ──────────────────────────────────────────────────────────────────
 export function useDeals(sections: RouteSection[]) {
@@ -59,6 +64,7 @@ export function useDeals(sections: RouteSection[]) {
   const fetchDeals = useCallback(async (names: string[]) => {
     setLoading(true);
     try {
+      await _serverReady;   // wacht tot Render wakker is voor de eerste aanvraag
       const q   = encodeURIComponent(names.slice(0, 20).join(','));
       const res = await fetch(`${API_URL}/deals?q=${q}`, {
         signal: AbortSignal.timeout(35_000),

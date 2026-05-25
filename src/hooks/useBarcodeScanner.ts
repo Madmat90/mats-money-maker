@@ -77,6 +77,18 @@ export function useBarcodeScanner() {
     rafRef.current = requestAnimationFrame(loop);
   }, [isSupported]);
 
+  /** Zet de zaklamp aan of uit. Geeft false terug als het apparaat dit niet ondersteunt. */
+  const setTorch = useCallback(async (on: boolean): Promise<boolean> => {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return false;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: on } as MediaTrackConstraintSet] });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   /** Stop camera en alle lopende detectie. */
   const stopCamera = useCallback(() => {
     if (rafRef.current)    cancelAnimationFrame(rafRef.current);
@@ -86,5 +98,5 @@ export function useBarcodeScanner() {
     setIsScanning(false);
   }, []);
 
-  return { openCamera, startDetecting, stopCamera, isScanning, isSupported };
+  return { openCamera, startDetecting, stopCamera, setTorch, isScanning, isSupported };
 }

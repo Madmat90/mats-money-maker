@@ -49,8 +49,10 @@ function Corner({ pos }: { pos: 'tl' | 'tr' | 'bl' | 'br' }) {
 
 export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [phase, setPhase] = useState<Phase>({ kind: 'scanning' });
-  const { openCamera, startDetecting, stopCamera, isSupported } = useBarcodeScanner();
+  const [phase,    setPhase]    = useState<Phase>({ kind: 'scanning' });
+  const [torchOn,  setTorchOn]  = useState(false);
+  const [torchAvail, setTorchAvail] = useState(true); // optimistisch; false na eerste mislukte poging
+  const { openCamera, startDetecting, stopCamera, setTorch, isSupported } = useBarcodeScanner();
 
   // ── Barcode detectie ────────────────────────────────────────────────────
   function runDetect(videoEl: HTMLVideoElement) {
@@ -61,9 +63,29 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
     });
   }
 
-  // ── AI herkenning: wacht tot video echt frames heeft ───────────────────
+  // ── Zaklamp helpers ─────────────────────────────────────────────────────
+  async function enableTorch() {
+    const ok = await setTorch(true);
+    if (ok) { setTorchOn(true); }
+    else    { setTorchAvail(false); }
+  }
+
+  async function disableTorch() {
+    await setTorch(false);
+    setTorchOn(false);
+  }
+
+  async function toggleTorch() {
+    if (torchOn) { await disableTorch(); }
+    else         { await enableTorch(); }
+  }
+
+  // ── AI herkenning ────────────────────────────────────────────────────────
   async function runAIScan(videoEl: HTMLVideoElement) {
     setPhase({ kind: 'ai-scanning' });
+
+    // Zet zaklamp aan voor betere belichting
+    await enableTorch();
 
     // Zorg dat de video-stream daadwerkelijk frames levert
     await new Promise<void>(resolve => {
@@ -78,18 +100,19 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
       };
       videoEl.addEventListener('playing',    onPlaying);
       videoEl.addEventListener('loadeddata', onPlaying);
-      // Fallback na 3 seconden
       setTimeout(resolve, 3000);
     });
 
     try {
       const name = await identifyProductFromVideo(videoEl);
+      await disableTorch();
       if (name) {
         setPhase({ kind: 'confirm', ean: '', name, source: 'ai' });
       } else {
         setPhase({ kind: 'notFound', ean: '' });
       }
     } catch {
+      await disableTorch();
       setPhase({ kind: 'notFound', ean: '' });
     }
   }
@@ -177,6 +200,30 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
           position: 'absolute', inset: 0,
           background: 'rgba(0,0,0,0.4)',
         }}/>
+      )}
+
+      {/* Zaklamp-knop — linksboven, alleen als camera actief en apparaat ondersteunt het */}
+      {!noCamera && torchAvail && (
+        <button
+          onClick={toggleTorch}
+          aria-label={torchOn ? 'Zaklamp uit' : 'Zaklamp aan'}
+          style={{
+            position: 'absolute', top: 20, left: 20,
+            width: 40, height: 40, borderRadius: 99,
+            background: torchOn ? 'rgba(240,138,62,0.85)' : 'rgba(0,0,0,0.55)',
+            border: '1px solid rgba(255,255,255,0.25)',
+            cursor: 'pointer', zIndex: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          {/* Bliksemschicht SVG */}
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M10.5 2L4 10h5.5L7 16l7-9h-5L10.5 2Z"
+                  fill={torchOn ? '#1a2540' : '#fff'}
+                  stroke={torchOn ? '#1a2540' : '#fff'}
+                  strokeWidth="0.5" strokeLinejoin="round"/>
+          </svg>
+        </button>
       )}
 
       {/* Sluitknop */}

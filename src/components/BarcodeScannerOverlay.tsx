@@ -92,6 +92,9 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
       new Promise<void>(resolve => setTimeout(resolve, 1500)),
     ]);
 
+    // Geef camera 1 seconde om belichting en focus te stabiliseren
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     // Zorg dat de video-stream daadwerkelijk frames levert
     await new Promise<void>(resolve => {
       if (videoEl.videoWidth > 0 && videoEl.readyState >= 2) {

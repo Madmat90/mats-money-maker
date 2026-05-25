@@ -2,17 +2,19 @@
 // Fullscreen camera-overlay met barcode-detectie en Open Food Facts lookup.
 
 import { useEffect, useRef, useState } from 'react';
-import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
-import { lookupBarcode }     from '../services/openFoodFacts';
+import { useBarcodeScanner }         from '../hooks/useBarcodeScanner';
+import { lookupBarcode }             from '../services/openFoodFacts';
+import { identifyProductFromVideo }  from '../services/identifyProduct';
 
 const ACCENT = '#f08a3e';
 
 type Phase =
   | { kind: 'scanning' }
-  | { kind: 'looking';  ean: string }
-  | { kind: 'confirm';  ean: string; name: string }
-  | { kind: 'notFound'; ean: string }
-  | { kind: 'error';    msg: string };
+  | { kind: 'looking';     ean: string }
+  | { kind: 'ai-scanning' }
+  | { kind: 'confirm';     ean: string; name: string; source?: 'barcode' | 'ai' }
+  | { kind: 'notFound';    ean: string }
+  | { kind: 'error';       msg: string };
 
 interface Props {
   onAdd:   (name: string) => void;
@@ -76,6 +78,22 @@ export function BarcodeScannerOverlay({ onAdd, onClose }: Props) {
     return () => stopCamera();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleAIScan() {
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+    setPhase({ kind: 'ai-scanning' });
+    try {
+      const name = await identifyProductFromVideo(videoEl);
+      if (name) {
+        setPhase({ kind: 'confirm', ean: '', name, source: 'ai' });
+      } else {
+        setPhase({ kind: 'notFound', ean: '' });
+      }
+    } catch {
+      setPhase({ kind: 'notFound', ean: '' });
+    }
+  }
 
   function handleConfirm(name: string) {
     stopCamera();
@@ -182,6 +200,27 @@ export function BarcodeScannerOverlay({ onAdd, onClose }: Props) {
             <p style={{ margin: 0, fontSize: 13.5, color: 'rgba(19,28,46,0.5)', lineHeight: 1.5 }}>
               Houd de barcode stil in het kader. EAN-13 en EAN-8 worden herkend.
             </p>
+            {/* Scheidingslijn */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, height: 1, background: 'rgba(19,28,46,0.1)' }}/>
+              <span style={{ fontSize: 11, color: 'rgba(19,28,46,0.35)', whiteSpace: 'nowrap' }}>
+                geen barcode?
+              </span>
+              <div style={{ flex: 1, height: 1, background: 'rgba(19,28,46,0.1)' }}/>
+            </div>
+            <button
+              onClick={handleAIScan}
+              style={{
+                padding: '14px 0',
+                borderRadius: 'var(--mm-r-pill)',
+                background: 'var(--mm-navy)', color: 'var(--mm-bone)', border: 'none',
+                fontFamily: 'var(--mm-sans)', fontWeight: 600, fontSize: 15,
+                cursor: 'pointer', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>✦</span> Herken product met AI
+            </button>
           </>
         )}
 
@@ -191,6 +230,26 @@ export function BarcodeScannerOverlay({ onAdd, onClose }: Props) {
           </p>
         )}
 
+        {phase.kind === 'ai-scanning' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 99, flexShrink: 0,
+              background: 'var(--mm-navy)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ fontSize: 18, animation: 'mmPulse 1.2s ease-out infinite' }}>✦</span>
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--mm-ink)' }}>
+                AI herkent product…
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(19,28,46,0.5)', marginTop: 2 }}>
+                Even geduld
+              </div>
+            </div>
+          </div>
+        )}
+
         {phase.kind === 'confirm' && (
           <>
             <div>
@@ -198,7 +257,7 @@ export function BarcodeScannerOverlay({ onAdd, onClose }: Props) {
                 margin: '0 0 5px',
                 fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
                 textTransform: 'uppercase', color: 'rgba(19,28,46,0.45)',
-              }}>Gevonden</p>
+              }}>{phase.source === 'ai' ? '✦ Herkend door AI' : 'Gevonden'}</p>
               <p style={{ margin: 0, fontSize: 19, fontWeight: 600, color: 'var(--mm-ink)' }}>
                 {phase.name}
               </p>

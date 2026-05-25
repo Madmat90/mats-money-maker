@@ -82,7 +82,10 @@ export function useBarcodeScanner() {
     const track = streamRef.current?.getVideoTracks()[0];
     if (!track) return false;
     try {
-      await track.applyConstraints({ advanced: [{ torch: on } as MediaTrackConstraintSet] });
+      // Controleer of het apparaat torch daadwerkelijk ondersteunt
+      const caps = track.getCapabilities?.() as Record<string, unknown> | undefined;
+      if (caps && !caps['torch']) return false;
+      await track.applyConstraints({ advanced: [{ torch: on }] as unknown as MediaTrackConstraintSet[] });
       return true;
     } catch {
       return false;

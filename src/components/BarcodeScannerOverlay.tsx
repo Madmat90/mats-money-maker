@@ -49,7 +49,9 @@ function Corner({ pos }: { pos: 'tl' | 'tr' | 'bl' | 'br' }) {
 
 export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [phase,    setPhase]    = useState<Phase>({ kind: 'scanning' });
+  const [phase,    setPhase]    = useState<Phase>(
+    initialMode === 'ai' ? { kind: 'ai-ready' } : { kind: 'scanning' }
+  );
   const [torchOn,  setTorchOn]  = useState(false);
   const [torchAvail, setTorchAvail] = useState(true); // optimistisch; false na eerste mislukte poging
   const { openCamera, startDetecting, stopCamera, setTorch, isSupported } = useBarcodeScanner();
@@ -84,8 +86,11 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
   async function runAIScan(videoEl: HTMLVideoElement) {
     setPhase({ kind: 'ai-scanning' });
 
-    // Zet zaklamp aan voor betere belichting
-    await enableTorch();
+    // Zaklamp aan — max 1,5s wachten; sommige apparaten hangen op applyConstraints
+    await Promise.race([
+      enableTorch(),
+      new Promise<void>(resolve => setTimeout(resolve, 1500)),
+    ]);
 
     // Zorg dat de video-stream daadwerkelijk frames levert
     await new Promise<void>(resolve => {

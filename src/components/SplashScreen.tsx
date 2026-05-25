@@ -152,6 +152,10 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
               iconBtn(<BarcodeSvg/>, 'var(--mm-navy)', 'var(--mm-bone)'),
               <><strong>Barcode scannen:</strong> tik op de donkere barcodeknop en scan de verpakking. Werkt het beste bij A-merken.</>
             )}
+            {row(
+              iconBtn(<span style={{ fontSize: 16, lineHeight: 1 }}>✦</span>, 'var(--mm-navy)', 'var(--mm-bone)'),
+              <><strong>AI-herkenning:</strong> tik op de ✦-knop voor producten zonder barcode, zoals groente en fruit. Richt de camera op het product en tik op ✦ in het kader. De AI herkent het product en voegt het toe aan de lijst.</>
+            )}
           </>)}
 
           {section('Aanbiedingen & categorieën', <>

@@ -624,6 +624,7 @@ export function ProductListScreen({
   const [toast,           setToast]          = useState<ToastState>({ mode: 'hidden' });
   const [showManualInput, setShowManualInput] = useState(false);
   const [showScanner,     setShowScanner]    = useState(false);
+  const [showAIScanner,   setShowAIScanner]  = useState(false);
   const [showMenu,        setShowMenu]        = useState(false);
   const [dealPopup,       setDealPopup]       = useState<DealInfo | null>(null);
   // { id, currentRoute } van het item waarvoor de categoriepicker open is
@@ -852,12 +853,30 @@ export function ProductListScreen({
         )}
       </div>
 
+      {/* ── AI-scan FAB ── */}
+      <button
+        aria-label="Herken product met AI"
+        onClick={() => setShowAIScanner(true)}
+        style={{
+          position: 'fixed', right: 96, bottom: 37,
+          width: 52, height: 52, borderRadius: 99,
+          background: 'var(--mm-navy)',
+          border: '3px solid var(--mm-paper)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+          boxShadow: '0 8px 20px -6px rgba(19,28,46,0.45)',
+          zIndex: 100,
+        }}
+      >
+        <span style={{ fontSize: 22, color: 'var(--mm-bone)', lineHeight: 1 }}>✦</span>
+      </button>
+
       {/* ── Barcode scan FAB ── */}
       <button
         aria-label="Scan barcode"
         onClick={() => setShowScanner(true)}
         style={{
-          position: 'fixed', right: 96, bottom: 37,
+          position: 'fixed', right: 160, bottom: 37,
           width: 52, height: 52, borderRadius: 99,
           background: 'var(--mm-navy)',
           border: '3px solid var(--mm-paper)',
@@ -914,6 +933,18 @@ export function ProductListScreen({
             showAddedToast(added);
           }}
           onClose={() => setShowScanner(false)}
+        />
+      )}
+
+      {/* ── AI-scanner overlay ── */}
+      {showAIScanner && (
+        <BarcodeScannerOverlay
+          initialMode="ai"
+          onAdd={name => {
+            const added = onAddByTranscript(name);
+            showAddedToast(added);
+          }}
+          onClose={() => setShowAIScanner(false)}
         />
       )}
 

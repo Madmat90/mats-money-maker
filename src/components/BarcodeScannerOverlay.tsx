@@ -17,8 +17,9 @@ type Phase =
   | { kind: 'error';       msg: string };
 
 interface Props {
-  onAdd:   (name: string) => void;
-  onClose: () => void;
+  onAdd:        (name: string) => void;
+  onClose:      () => void;
+  initialMode?: 'barcode' | 'ai';
 }
 
 // ── Hoekmarkering viewfinder ──────────────────────────────────────────────
@@ -45,12 +46,14 @@ function Corner({ pos }: { pos: 'tl' | 'tr' | 'bl' | 'br' }) {
   );
 }
 
-export function BarcodeScannerOverlay({ onAdd, onClose }: Props) {
+export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [phase,  setPhase] = useState<Phase>({ kind: 'scanning' });
+  const [phase,  setPhase] = useState<Phase>(
+    initialMode === 'ai' ? { kind: 'ai-scanning' } : { kind: 'scanning' }
+  );
   const { openCamera, startDetecting, stopCamera, isSupported } = useBarcodeScanner();
 
-  // Herstart detectie na notFound / confirm → opnieuw scannen
+  // Herstart barcode-detectie na notFound / confirm
   function runDetect(videoEl: HTMLVideoElement) {
     startDetecting(videoEl, async ean => {
       setPhase({ kind: 'looking', ean });
@@ -59,29 +62,7 @@ export function BarcodeScannerOverlay({ onAdd, onClose }: Props) {
     });
   }
 
-  useEffect(() => {
-    if (!isSupported) {
-      setPhase({ kind: 'error', msg: 'Barcode-scanner niet beschikbaar in deze browser.\nGebruik Chrome (Android) of Safari 17+.' });
-      return;
-    }
-    const videoEl = videoRef.current;
-    if (!videoEl) return;
-
-    openCamera(videoEl).then(ok => {
-      if (!ok) {
-        setPhase({ kind: 'error', msg: 'Geen toegang tot camera.\nControleer de cameramachtiging in je browserinstellingen.' });
-        return;
-      }
-      runDetect(videoEl);
-    });
-
-    return () => stopCamera();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function handleAIScan() {
-    const videoEl = videoRef.current;
-    if (!videoEl) return;
+  async function runAIScan(videoEl: HTMLVideoElement) {
     setPhase({ kind: 'ai-scanning' });
     try {
       const name = await identifyProductFromVideo(videoEl);
@@ -95,6 +76,37 @@ export function BarcodeScannerOverlay({ onAdd, onClose }: Props) {
     }
   }
 
+  useEffect(() => {
+    if (initialMode === 'barcode' && !isSupported) {
+      setPhase({ kind: 'error', msg: 'Barcode-scanner niet beschikbaar in deze browser.\nGebruik Chrome (Android) of Safari 17+.' });
+      return;
+    }
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    openCamera(videoEl).then(ok => {
+      if (!ok) {
+        setPhase({ kind: 'error', msg: 'Geen toegang tot camera.\nControleer de cameramachtiging in je browserinstellingen.' });
+        return;
+      }
+      if (initialMode === 'ai') {
+        void runAIScan(videoEl);
+      } else {
+        runDetect(videoEl);
+      }
+    });
+
+    return () => stopCamera();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Knop in barcode-modus: handmatig AI-scan starten
+  async function handleAIScan() {
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+    await runAIScan(videoEl);
+  }
+
   function handleConfirm(name: string) {
     stopCamera();
     onAdd(name);
@@ -102,9 +114,14 @@ export function BarcodeScannerOverlay({ onAdd, onClose }: Props) {
   }
 
   function handleRetry() {
-    setPhase({ kind: 'scanning' });
     const videoEl = videoRef.current;
-    if (videoEl) runDetect(videoEl);
+    if (!videoEl) return;
+    if (initialMode === 'ai') {
+      void runAIScan(videoEl);
+    } else {
+      setPhase({ kind: 'scanning' });
+      runDetect(videoEl);
+    }
   }
 
   const noCamera = phase.kind === 'error';
@@ -157,23 +174,38 @@ export function BarcodeScannerOverlay({ onAdd, onClose }: Props) {
         <div style={{
           position: 'absolute',
           top: '50%', left: '50%',
-          transform: 'translate(-50%, -65%)',
-          width: 260, height: 160,
+          transform: initialMode === 'ai'
+            ? 'translate(-50%, -62%)'
+            : 'translate(-50%, -65%)',
+          width:  initialMode === 'ai' ? 240 : 260,
+          height: initialMode === 'ai' ? 240 : 160,
         }}>
           <Corner pos="tl"/>
           <Corner pos="tr"/>
           <Corner pos="bl"/>
           <Corner pos="br"/>
-          {/* Scanlijn animatie */}
-          {phase.kind === 'scanning' && (
+          {/* Scanlijn — alleen in barcode-modus */}
+          {phase.kind === 'scanning' && initialMode === 'barcode' && (
             <div style={{
               position: 'absolute', left: 6, right: 6, height: 2,
               background: ACCENT, borderRadius: 2,
               animation: 'mmScanLine 1.8s ease-in-out infinite',
             }}/>
           )}
-          {/* Groen vinkje bij treffer */}
-          {(phase.kind === 'looking' || phase.kind === 'confirm') && (
+          {/* Pulserend AI-icoon in viewfinder — AI-modus */}
+          {phase.kind === 'ai-scanning' && (
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{
+                fontSize: 40, color: '#fff', opacity: 0.85,
+                animation: 'mmPulse 1.2s ease-out infinite',
+              }}>✦</span>
+            </div>
+          )}
+          {/* Groen kader bij barcode-treffer */}
+          {(phase.kind === 'looking' || (phase.kind === 'confirm' && initialMode === 'barcode')) && (
             <div style={{
               position: 'absolute', inset: 0,
               border: '2px solid #4caf50',
@@ -223,6 +255,7 @@ export function BarcodeScannerOverlay({ onAdd, onClose }: Props) {
             </button>
           </>
         )}
+
 
         {phase.kind === 'looking' && (
           <p style={{ margin: 0, fontSize: 15, color: 'var(--mm-ink)' }}>
@@ -295,7 +328,10 @@ export function BarcodeScannerOverlay({ onAdd, onClose }: Props) {
                 textTransform: 'uppercase', color: 'rgba(19,28,46,0.45)',
               }}>Niet gevonden</p>
               <p style={{ margin: 0, fontSize: 14, color: 'rgba(19,28,46,0.6)', lineHeight: 1.5 }}>
-                Barcode <span style={{ fontFamily: 'var(--mm-mono)', fontSize: 13 }}>{phase.ean}</span> staat niet in de database.
+                {initialMode === 'ai'
+                  ? 'Product niet herkend. Probeer de camera dichter bij het product te houden.'
+                  : <>Barcode <span style={{ fontFamily: 'var(--mm-mono)', fontSize: 13 }}>{phase.ean}</span> staat niet in de database.</>
+                }
               </p>
             </div>
             <button

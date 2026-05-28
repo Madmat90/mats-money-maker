@@ -1,21 +1,22 @@
 // BarcodeScannerOverlay.tsx
-// Fullscreen camera-overlay met barcode-detectie en Open Food Facts lookup.
+// Fullscreen camera-overlay — barcode-modus en AI-modus zijn volledig gescheiden.
+// De twee modi delen alleen de camera-stream; hun detectielogica interfereert nooit.
 
 import { useEffect, useRef, useState } from 'react';
-import { useBarcodeScanner }         from '../hooks/useBarcodeScanner';
-import { lookupBarcode }             from '../services/openFoodFacts';
-import { identifyProductFromVideo }  from '../services/identifyProduct';
+import { useBarcodeScanner }        from '../hooks/useBarcodeScanner';
+import { lookupBarcode }            from '../services/openFoodFacts';
+import { identifyProductFromVideo } from '../services/identifyProduct';
 
 const ACCENT = '#f08a3e';
 
 type Phase =
-  | { kind: 'scanning' }               // barcode-modus: actief scannen
-  | { kind: 'ai-ready' }               // AI-modus: camera warm, wacht op tik
-  | { kind: 'looking';    ean: string } // barcode gevonden, lookup bezig
-  | { kind: 'ai-scanning' }            // AI-frame verstuurd, wacht op antwoord
-  | { kind: 'confirm';    ean: string; name: string; source?: 'barcode' | 'ai' }
-  | { kind: 'notFound';   ean: string }
-  | { kind: 'error';      msg: string };
+  | { kind: 'scanning' }                // barcode: actief scannen
+  | { kind: 'ai-ready' }                // AI: camera warm, wacht op tik
+  | { kind: 'looking';   ean: string }  // barcode gevonden, lookup loopt
+  | { kind: 'ai-scanning' }             // AI: frame verstuurd
+  | { kind: 'confirm';   ean: string; name: string; source?: 'barcode' | 'ai' }
+  | { kind: 'notFound';  ean: string }
+  | { kind: 'error';     msg: string };
 
 interface Props {
   onAdd:        (name: string) => void;
@@ -49,27 +50,46 @@ function Corner({ pos }: { pos: 'tl' | 'tr' | 'bl' | 'br' }) {
 
 export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [phase,    setPhase]    = useState<Phase>(
+
+  // Fase start direct in de juiste modus — geen flash van de verkeerde UI
+  const [phase,      setPhase]      = useState<Phase>(
     initialMode === 'ai' ? { kind: 'ai-ready' } : { kind: 'scanning' }
   );
-  const [torchOn,  setTorchOn]  = useState(false);
-  const [torchAvail, setTorchAvail] = useState(true); // optimistisch; false na eerste mislukte poging
-  const { openCamera, startDetecting, stopCamera, setTorch, isSupported } = useBarcodeScanner();
+  const [torchOn,    setTorchOn]    = useState(false);
+  const [torchAvail, setTorchAvail] = useState(true);
 
-  // ── Barcode detectie ────────────────────────────────────────────────────
+  const { openCamera, startDetecting, stopDetecting, stopCamera, setTorch, isSupported } =
+    useBarcodeScanner();
+
+  // Guard-ref: voorkomt dat een verouderde async-callback de fase overschrijft.
+  // Wordt gereset bij elke nieuwe detectieronde.
+  const detectionToken = useRef(0);
+
+  // ── Barcode-detectie ────────────────────────────────────────────────────
+  // Maakt een uniek token aan zodat callbacks van een vorige ronde
+  // genegeerd worden als de gebruiker ondertussen op Opnieuw heeft geklikt.
   function runDetect(videoEl: HTMLVideoElement) {
+    const token = ++detectionToken.current;
     startDetecting(videoEl, async ean => {
+      if (token !== detectionToken.current) return; // verouderde callback
       setPhase({ kind: 'looking', ean });
       const name = await lookupBarcode(ean);
-      setPhase(name ? { kind: 'confirm', ean, name } : { kind: 'notFound', ean });
+      if (token !== detectionToken.current) return; // verouderde callback
+      setPhase(name
+        ? { kind: 'confirm', ean, name, source: 'barcode' }
+        : { kind: 'notFound', ean }
+      );
     });
   }
 
-  // ── Zaklamp helpers ─────────────────────────────────────────────────────
+  // ── Zaklamp ─────────────────────────────────────────────────────────────
   async function enableTorch() {
-    const ok = await setTorch(true);
-    if (ok) { setTorchOn(true); }
-    else    { setTorchAvail(false); }
+    const ok = await Promise.race([
+      setTorch(true),
+      new Promise<boolean>(resolve => setTimeout(() => resolve(false), 1500)),
+    ]);
+    if (ok) setTorchOn(true);
+    else    setTorchAvail(false);
   }
 
   async function disableTorch() {
@@ -78,54 +98,37 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
   }
 
   async function toggleTorch() {
-    if (torchOn) { await disableTorch(); }
-    else         { await enableTorch(); }
+    if (torchOn) await disableTorch();
+    else         await enableTorch();
   }
 
-  // ── AI herkenning ────────────────────────────────────────────────────────
+  // ── AI-herkenning ────────────────────────────────────────────────────────
+  // Stopt altijd de barcode-detectielus voor het frame verstuurd wordt.
   async function runAIScan(videoEl: HTMLVideoElement) {
+    // Stop barcode-detectie zodat de twee modi nooit tegelijk lopen
+    stopDetecting();
+    // Invalideer lopende barcode-callbacks
+    detectionToken.current++;
+
     setPhase({ kind: 'ai-scanning' });
-
-    // Zaklamp aan — max 1,5s wachten; sommige apparaten hangen op applyConstraints
-    await Promise.race([
-      enableTorch(),
-      new Promise<void>(resolve => setTimeout(resolve, 1500)),
-    ]);
-
-    // Geef camera 1 seconde om belichting en focus te stabiliseren
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Zorg dat de video-stream daadwerkelijk frames levert
-    await new Promise<void>(resolve => {
-      if (videoEl.videoWidth > 0 && videoEl.readyState >= 2) {
-        resolve();
-        return;
-      }
-      const onPlaying = () => {
-        videoEl.removeEventListener('playing', onPlaying);
-        videoEl.removeEventListener('loadeddata', onPlaying);
-        resolve();
-      };
-      videoEl.addEventListener('playing',    onPlaying);
-      videoEl.addEventListener('loadeddata', onPlaying);
-      setTimeout(resolve, 3000);
-    });
+    await enableTorch();
+    // Geef camera tijd om belichting/focus te stabiliseren
+    await new Promise(resolve => setTimeout(resolve, 800));
 
     try {
       const name = await identifyProductFromVideo(videoEl);
       await disableTorch();
-      if (name) {
-        setPhase({ kind: 'confirm', ean: '', name, source: 'ai' });
-      } else {
-        setPhase({ kind: 'notFound', ean: '' });
-      }
+      setPhase(name
+        ? { kind: 'confirm', ean: '', name, source: 'ai' }
+        : { kind: 'notFound', ean: '' }
+      );
     } catch {
       await disableTorch();
       setPhase({ kind: 'notFound', ean: '' });
     }
   }
 
-  // ── Camera opstarten ────────────────────────────────────────────────────
+  // ── Camera opstarten ─────────────────────────────────────────────────────
   useEffect(() => {
     if (initialMode === 'barcode' && !isSupported) {
       setPhase({ kind: 'error', msg: 'Barcode-scanner niet beschikbaar in deze browser.\nGebruik Chrome (Android) of Safari 17+.' });
@@ -140,7 +143,6 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
         return;
       }
       if (initialMode === 'ai') {
-        // Camera open: toon klaar-scherm, gebruiker kiest zelf het moment
         setPhase({ kind: 'ai-ready' });
       } else {
         setPhase({ kind: 'scanning' });
@@ -148,15 +150,19 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
       }
     });
 
-    return () => stopCamera();
+    return () => {
+      // Invalideer callbacks en stop alles bij unmount
+      detectionToken.current++;
+      stopCamera();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Handlers ────────────────────────────────────────────────────────────
-  async function handleAIScan() {
+  // ── Handlers ─────────────────────────────────────────────────────────────
+  function handleAIScan() {
     const videoEl = videoRef.current;
     if (!videoEl) return;
-    await runAIScan(videoEl);
+    void runAIScan(videoEl);
   }
 
   function handleConfirm(name: string) {
@@ -169,18 +175,22 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
     const videoEl = videoRef.current;
     if (!videoEl) return;
     if (initialMode === 'ai') {
+      // Terug naar wacht-op-tik scherm
       setPhase({ kind: 'ai-ready' });
     } else {
+      // Stop eventuele lopende detectie en start opnieuw
+      stopDetecting();
       setPhase({ kind: 'scanning' });
       runDetect(videoEl);
     }
   }
 
-  const noCamera   = phase.kind === 'error';
-  const isAIMode   = initialMode === 'ai';
-  const vfSize     = isAIMode ? 240 : 260;
-  const vfHeight   = isAIMode ? 240 : 160;
-  const vfTranslate = isAIMode ? 'translate(-50%, -60%)' : 'translate(-50%, -65%)';
+  // ── Afgeleide UI-waarden ──────────────────────────────────────────────────
+  const noCamera    = phase.kind === 'error';
+  const isAIMode    = initialMode === 'ai';
+  const vfW         = isAIMode ? 240 : 260;
+  const vfH         = isAIMode ? 240 : 160;
+  const vfTransform = isAIMode ? 'translate(-50%, -60%)' : 'translate(-50%, -65%)';
 
   return (
     <div style={{
@@ -202,15 +212,12 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
         }}
       />
 
-      {/* Donkere vignette laag */}
+      {/* Vignette */}
       {!noCamera && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'rgba(0,0,0,0.4)',
-        }}/>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }}/>
       )}
 
-      {/* Zaklamp-knop — linksboven, alleen als camera actief en apparaat ondersteunt het */}
+      {/* Zaklamp-knop (linksboven) */}
       {!noCamera && torchAvail && (
         <button
           onClick={toggleTorch}
@@ -224,7 +231,6 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
-          {/* Bliksemschicht SVG */}
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M10.5 2L4 10h5.5L7 16l7-9h-5L10.5 2Z"
                   fill={torchOn ? '#1a2540' : '#fff'}
@@ -234,7 +240,7 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
         </button>
       )}
 
-      {/* Sluitknop */}
+      {/* Sluitknop (rechtsboven) */}
       <button
         onClick={() => { stopCamera(); onClose(); }}
         aria-label="Scanner sluiten"
@@ -254,15 +260,15 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
         <div style={{
           position: 'absolute',
           top: '50%', left: '50%',
-          transform: vfTranslate,
-          width: vfSize, height: vfHeight,
+          transform: vfTransform,
+          width: vfW, height: vfH,
         }}>
           <Corner pos="tl"/>
           <Corner pos="tr"/>
           <Corner pos="bl"/>
           <Corner pos="br"/>
 
-          {/* Scanlijn — barcode-modus */}
+          {/* Barcode: bewegende scanlijn */}
           {phase.kind === 'scanning' && (
             <div style={{
               position: 'absolute', left: 6, right: 6, height: 2,
@@ -271,7 +277,7 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
             }}/>
           )}
 
-          {/* Sluiter-knop in viewfinder — AI klaar-state */}
+          {/* AI klaar: sluiterknop */}
           {phase.kind === 'ai-ready' && (
             <div style={{
               position: 'absolute', inset: 0,
@@ -293,7 +299,7 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
             </div>
           )}
 
-          {/* Pulserend icoon — AI bezig */}
+          {/* AI bezig: pulserend icoon */}
           {phase.kind === 'ai-scanning' && (
             <div style={{
               position: 'absolute', inset: 0,
@@ -306,12 +312,11 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
             </div>
           )}
 
-          {/* Groen kader bij barcode-treffer */}
+          {/* Barcode gevonden: groen kader */}
           {(phase.kind === 'looking' || (phase.kind === 'confirm' && !isAIMode)) && (
             <div style={{
               position: 'absolute', inset: 0,
-              border: '2px solid #4caf50',
-              borderRadius: 6,
+              border: '2px solid #4caf50', borderRadius: 6,
             }}/>
           )}
         </div>
@@ -326,7 +331,6 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
         display: 'flex', flexDirection: 'column', gap: 16,
       }}>
 
-        {/* Barcode: actief scannen */}
         {phase.kind === 'scanning' && (
           <>
             <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--mm-ink)' }}>
@@ -345,8 +349,7 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
             <button
               onClick={handleAIScan}
               style={{
-                padding: '14px 0',
-                borderRadius: 'var(--mm-r-pill)',
+                padding: '14px 0', borderRadius: 'var(--mm-r-pill)',
                 background: 'var(--mm-navy)', color: 'var(--mm-bone)', border: 'none',
                 fontFamily: 'var(--mm-sans)', fontWeight: 600, fontSize: 15,
                 cursor: 'pointer', display: 'flex', alignItems: 'center',
@@ -358,7 +361,6 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
           </>
         )}
 
-        {/* AI-modus: klaar, wacht op tik */}
         {phase.kind === 'ai-ready' && (
           <>
             <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--mm-ink)' }}>
@@ -370,14 +372,12 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
           </>
         )}
 
-        {/* Barcode gevonden, lookup loopt */}
         {phase.kind === 'looking' && (
           <p style={{ margin: 0, fontSize: 15, color: 'var(--mm-ink)' }}>
             Barcode gevonden, product opzoeken…
           </p>
         )}
 
-        {/* AI bezig */}
         {phase.kind === 'ai-scanning' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{
@@ -398,15 +398,16 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
           </div>
         )}
 
-        {/* Bevestiging */}
         {phase.kind === 'confirm' && (
           <>
             <div>
               <p style={{
-                margin: '0 0 5px',
-                fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-                textTransform: 'uppercase', color: 'rgba(19,28,46,0.45)',
-              }}>{phase.source === 'ai' ? '✦ Herkend door AI' : 'Gevonden'}</p>
+                margin: '0 0 5px', fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.12em', textTransform: 'uppercase',
+                color: 'rgba(19,28,46,0.45)',
+              }}>
+                {phase.source === 'ai' ? '✦ Herkend door AI' : 'Gevonden'}
+              </p>
               <p style={{ margin: 0, fontSize: 19, fontWeight: 600, color: 'var(--mm-ink)' }}>
                 {phase.name}
               </p>
@@ -415,8 +416,7 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
               <button
                 onClick={() => handleConfirm(phase.name)}
                 style={{
-                  flex: 1, padding: '15px 0',
-                  borderRadius: 'var(--mm-r-pill)',
+                  flex: 1, padding: '15px 0', borderRadius: 'var(--mm-r-pill)',
                   background: ACCENT, color: '#1a2540', border: 'none',
                   fontFamily: 'var(--mm-sans)', fontWeight: 700, fontSize: 15,
                   cursor: 'pointer',
@@ -425,8 +425,7 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
               <button
                 onClick={handleRetry}
                 style={{
-                  padding: '15px 18px',
-                  borderRadius: 'var(--mm-r-pill)',
+                  padding: '15px 18px', borderRadius: 'var(--mm-r-pill)',
                   background: 'var(--mm-cream)', color: 'var(--mm-ink)', border: 'none',
                   fontFamily: 'var(--mm-sans)', fontSize: 14, cursor: 'pointer',
                 }}
@@ -435,19 +434,18 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
           </>
         )}
 
-        {/* Niet gevonden */}
         {phase.kind === 'notFound' && (
           <>
             <div>
               <p style={{
-                margin: '0 0 5px',
-                fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-                textTransform: 'uppercase', color: 'rgba(19,28,46,0.45)',
+                margin: '0 0 5px', fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.12em', textTransform: 'uppercase',
+                color: 'rgba(19,28,46,0.45)',
               }}>Niet gevonden</p>
               <p style={{ margin: 0, fontSize: 14, color: 'rgba(19,28,46,0.6)', lineHeight: 1.5 }}>
                 {isAIMode
                   ? 'Product niet herkend. Probeer beter licht of richt de camera dichter op het product.'
-                  : <>Barcode <span style={{ fontFamily: 'var(--mm-mono)', fontSize: 13 }}>{phase.ean}</span> staat niet in de database.</>
+                  : <>Barcode{phase.ean ? <> <span style={{ fontFamily: 'var(--mm-mono)', fontSize: 13 }}>{phase.ean}</span></> : ''} staat niet in de database.</>
                 }
               </p>
             </div>
@@ -457,8 +455,8 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
                 padding: '14px 0', borderRadius: 'var(--mm-r-pill)',
                 background: isAIMode ? 'var(--mm-navy)' : 'var(--mm-cream)',
                 color: isAIMode ? 'var(--mm-bone)' : 'var(--mm-ink)',
-                border: 'none',
-                fontFamily: 'var(--mm-sans)', fontSize: 14, cursor: 'pointer',
+                border: 'none', fontFamily: 'var(--mm-sans)', fontSize: 14,
+                cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
@@ -467,7 +465,6 @@ export function BarcodeScannerOverlay({ onAdd, onClose, initialMode = 'barcode' 
           </>
         )}
 
-        {/* Fout */}
         {phase.kind === 'error' && (
           <p style={{
             margin: 0, fontSize: 14, color: 'var(--mm-ink)',

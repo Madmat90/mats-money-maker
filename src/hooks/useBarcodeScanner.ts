@@ -4,7 +4,6 @@
 
 import { useRef, useState, useCallback } from 'react';
 
-// BarcodeDetector zit nog niet in alle standaard TS-lib versies
 declare global {
   class BarcodeDetector {
     constructor(options?: { formats: string[] });
@@ -34,8 +33,8 @@ export function useBarcodeScanner() {
           height: { ideal: 720 },
         },
       });
-      streamRef.current  = stream;
-      videoEl.srcObject  = stream;
+      streamRef.current = stream;
+      videoEl.srcObject = stream;
       await videoEl.play();
       setIsScanning(true);
       return true;
@@ -44,12 +43,33 @@ export function useBarcodeScanner() {
     }
   }, []);
 
-  /** Start een rAF-lus die elk frame scant. Stopt zodra een code gevonden wordt. */
+  /**
+   * Stop de detectie-rAF-loop zonder de camera te stoppen.
+   * Veilig om meerdere keren aan te roepen.
+   */
+  const stopDetecting = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  }, []);
+
+  /**
+   * Start een rAF-lus die elk frame scant.
+   * Annuleert automatisch elke al-lopende lus voor er een nieuwe start.
+   * Stopt zodra een code gevonden wordt of stopDetecting() wordt aangeroepen.
+   */
   const startDetecting = useCallback((
     videoEl:    HTMLVideoElement,
     onDetected: (rawValue: string) => void,
   ) => {
     if (!isSupported) return;
+
+    // Annuleer eventuele vorige detectielus
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
 
     if (!detectorRef.current) {
       detectorRef.current = new BarcodeDetector({
@@ -59,7 +79,6 @@ export function useBarcodeScanner() {
     const detector = detectorRef.current;
 
     const loop = async () => {
-      // Wacht tot video geladen is
       if (videoEl.readyState < 2) {
         rafRef.current = requestAnimationFrame(loop);
         return;
@@ -67,8 +86,10 @@ export function useBarcodeScanner() {
       try {
         const codes = await detector.detect(videoEl);
         if (codes.length > 0) {
+          // Loop stopt hier — geen nieuwe rAF inplannen
+          rafRef.current = null;
           onDetected(codes[0].rawValue);
-          return; // stop na eerste treffer
+          return;
         }
       } catch { /* frame overgeslagen */ }
       rafRef.current = requestAnimationFrame(loop);
@@ -82,7 +103,6 @@ export function useBarcodeScanner() {
     const track = streamRef.current?.getVideoTracks()[0];
     if (!track) return false;
     try {
-      // Controleer of het apparaat torch daadwerkelijk ondersteunt
       const caps = track.getCapabilities?.() as Record<string, unknown> | undefined;
       if (caps && !caps['torch']) return false;
       await track.applyConstraints({ advanced: [{ torch: on }] as unknown as MediaTrackConstraintSet[] });
@@ -92,14 +112,18 @@ export function useBarcodeScanner() {
     }
   }, []);
 
-  /** Stop camera en alle lopende detectie. */
+  /** Stop camera, detectielus én stream volledig. */
   const stopCamera = useCallback(() => {
-    if (rafRef.current)    cancelAnimationFrame(rafRef.current);
-    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
-    streamRef.current  = null;
-    rafRef.current     = null;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
     setIsScanning(false);
   }, []);
 
-  return { openCamera, startDetecting, stopCamera, setTorch, isScanning, isSupported };
+  return { openCamera, startDetecting, stopDetecting, stopCamera, setTorch, isScanning, isSupported };
 }
